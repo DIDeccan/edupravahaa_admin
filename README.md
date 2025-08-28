@@ -43,11 +43,8 @@ This is the admin backend for the EduPravahaa platform, built with Python and Dj
    - Windows: `$env:ENV_FILE=".env.local"`
    - macOS/Linux: `export ENV_FILE=".env.local"`
    - Ensure `.env.local` exists with:
-     ```
-     SECRET_KEY=your-secret-key
-     DATABASE_URL=sqlite:///db.sqlite3
-     DEBUG=True
-     ```
+   - Copy .env.example and enter you creds for db,twilio etc.
+   - make sure to add <EMAIL_PORT="587">.
 
 7. **Apply Database Migrations**
    ```bash
