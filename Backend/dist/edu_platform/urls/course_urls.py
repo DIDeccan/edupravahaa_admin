@@ -1,6 +1,6 @@
 from django.urls import path
 from edu_platform.views.course_views import (
-    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, MyCoursesView
+    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, MyCoursesView,CourseStudentCountView
 )
 
 
@@ -14,5 +14,6 @@ urlpatterns = [
     
     # Lists purchased courses for the authenticated student
     path('my_courses/', MyCoursesView.as_view(), name='my_courses'),
-
+    path('courses/student-count/', CourseStudentCountView.as_view(), name='course-student-count'),
 ]
+

@@ -48,7 +48,7 @@ This is the admin backend for the EduPravahaa platform, built with Python and Dj
 
 7. **Apply Database Migrations**
    ```bash
-   python manage.py makemigrations
+   python manage.py makemigrations edu_platform
    python manage.py migrate
    ```
 
