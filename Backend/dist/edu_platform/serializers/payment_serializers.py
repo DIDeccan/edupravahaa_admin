@@ -57,3 +57,14 @@ class VerifyPaymentSerializer(serializers.Serializer):
         
         attrs['subscription'] = subscription
         return attrs
+
+
+class TransactionReportSerializer(serializers.ModelSerializer):
+    payment_mode = serializers.CharField(source='payment_method')
+    date = serializers.DateTimeField(source='purchased_at')
+    status = serializers.CharField(source='payment_status')
+    amount = serializers.DecimalField(source='amount_paid', max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = CourseSubscription
+        fields = ['payment_mode', 'date', 'status', 'amount']    

@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q
+from django.db.models import Q,Count
 from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription
-from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer
+from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer,CourseStudentCountSerializer
 from edu_platform.permissions.auth_permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 import logging
 
@@ -354,3 +354,20 @@ class MyCoursesView(generics.ListAPIView):
                 'error': 'Failed to retrieve purchased courses. Please try again.',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+# api/views.py
+
+class CourseStudentCountView(APIView):
+    def get(self, request):
+        # Query to get courses with student counts
+        courses = Course.objects.filter(
+            subscriptions__payment_status='completed',
+            subscriptions__is_active=True
+        ).annotate(
+            student_count=Count('subscriptions__student')
+        ).order_by('name')
+
+        # Serialize the data
+        serializer = CourseStudentCountSerializer(courses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)     
+

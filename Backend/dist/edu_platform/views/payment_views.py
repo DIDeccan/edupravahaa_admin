@@ -1,5 +1,6 @@
 from rest_framework import views, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
@@ -8,7 +9,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription
 from edu_platform.permissions.auth_permissions import IsStudent
-from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer
+from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer,TransactionReportSerializer
 import razorpay
 import logging
 
@@ -321,3 +322,10 @@ class VerifyPaymentView(BaseAPIView):
                 'error': 'Failed to verify payment. Please try again.',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TransactionReportView(APIView):
+    def get(self, request):
+        # Get the last 5 transactions, ordered by purchased_at (most recent first)
+        transactions = CourseSubscription.objects.all().order_by('-purchased_at')[:5]
+        serializer = TransactionReportSerializer(transactions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)        

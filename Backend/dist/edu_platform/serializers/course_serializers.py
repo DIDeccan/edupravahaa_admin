@@ -68,3 +68,10 @@ class PurchasedCoursesSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'course', 'purchased_at', 'payment_status'
         ]
+
+class CourseStudentCountSerializer(serializers.ModelSerializer):
+    student_count = serializers.IntegerField()
+
+    class Meta:
+        model = Course
+        fields = ['name', 'student_count']        
