@@ -369,5 +369,7 @@ class CourseStudentCountView(APIView):
 
         # Serialize the data
         serializer = CourseStudentCountSerializer(courses, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)     
+        return Response(serializer.data, status=status.HTTP_200_OK)   
+    
+      
 
