@@ -691,3 +691,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
         fields = ['profile_picture']
+
+class UserStatusCountSerializer(serializers.Serializer):
+    active_users = serializers.IntegerField()
+    registered_users = serializers.IntegerField()
+    deactivated_users = serializers.IntegerField()        

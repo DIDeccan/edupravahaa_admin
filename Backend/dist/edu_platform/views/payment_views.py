@@ -1,7 +1,7 @@
 from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAdminUser
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -324,8 +324,23 @@ class VerifyPaymentView(BaseAPIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class TransactionReportView(APIView):
+    permission_classes = [IsAdminUser]
+    
     def get(self, request):
-        # Get the last 5 transactions, ordered by purchased_at (most recent first)
-        transactions = CourseSubscription.objects.all().order_by('-purchased_at')[:5]
-        serializer = TransactionReportSerializer(transactions, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)        
+        try:
+            # Get the last 5 transactions, ordered by purchased_at (most recent first)
+            transactions = CourseSubscription.objects.all().order_by('-purchased_at')[:5]
+            serializer = TransactionReportSerializer(transactions, many=True)
+            response_data = {
+                "message": "Transactions retrieved successfully.",
+                "message_type": "success",
+                "data": serializer.data
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            response_data = {
+                "message": f"Failed to retrieve transactions: {str(e)}",
+                "message_type": "error",
+                "data": []
+            }
+            return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)       

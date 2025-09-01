@@ -1,9 +1,11 @@
 from rest_framework import generics, status, views
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAdminUser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from django.core.mail import send_mail
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
@@ -17,7 +19,7 @@ from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer
 )
 import logging
 import phonenumbers
@@ -1158,3 +1160,16 @@ class TrialStatusView(generics.GenericAPIView):
                 'error': 'Failed to retrieve trial status. Please try again.',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+        
+class UserStatusCountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+    
+    def get(self, request):
+        User = get_user_model()
+        data = {
+            'active_users': User.objects.filter(is_active=True).count(),
+            'registered_users': User.objects.count(),
+            'deactivated_users': User.objects.filter(is_active=False).count(),
+        }
+        serializer = UserStatusCountSerializer(data)
+        return Response(serializer.data, status=status.HTTP_200_OK)        
