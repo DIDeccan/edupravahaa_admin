@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from edu_platform.views.auth_views import (
     RegisterView, LoginView, LogoutView, ProfileView,
     TeacherRegisterView, ListTeachersView, ListStudentsView,
-    ChangePasswordView, SendOTPView,
+    ChangePasswordView, SendOTPView, UserStatusCountView,
     VerifyOTPView, ForgotPasswordView, TrialStatusView,
     AdminRegisterView
 )
@@ -31,4 +31,5 @@ urlpatterns = [
     path('register/admin/', AdminRegisterView.as_view(), name='register_admin'),
     path('admin/teachers/', ListTeachersView.as_view(), name='list_teachers'),
     path('admin/students/', ListStudentsView.as_view(), name='list_students'),
+    path('users/status-count/', UserStatusCountView.as_view(), name='user-status-count'),
 ]

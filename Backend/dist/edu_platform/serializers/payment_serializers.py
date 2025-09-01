@@ -62,9 +62,15 @@ class VerifyPaymentSerializer(serializers.Serializer):
 class TransactionReportSerializer(serializers.ModelSerializer):
     payment_mode = serializers.CharField(source='payment_method')
     date = serializers.DateTimeField(source='purchased_at')
-    status = serializers.CharField(source='payment_status')
+    message_info = serializers.SerializerMethodField()
     amount = serializers.DecimalField(source='amount_paid', max_digits=10, decimal_places=2)
 
     class Meta:
         model = CourseSubscription
-        fields = ['payment_mode', 'date', 'status', 'amount']    
+        fields = ['payment_mode', 'date', 'message_info', 'amount']    
+
+    def get_message_info(self, obj):
+        # Map payment_status to custom messages
+        if obj.payment_status == 'completed':
+            return 'Success'
+        return 'Failure'    
