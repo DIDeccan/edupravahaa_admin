@@ -19,12 +19,51 @@ from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer
 )
 import logging
 import phonenumbers
 
 logger = logging.getLogger(__name__)
+
+def get_serializer_error_message(errors):
+    """Extracts the first error message from serializer errors, including field name if applicable."""
+    if isinstance(errors, dict):
+        for field, error in errors.items():
+            if field == 'non_field_errors':
+                # Handle non-field errors (e.g., from validate method)
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        # Check for 'error' or 'message' key
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    return str(error[0])  # Fallback for unexpected structure
+            else:
+                # Handle field-specific errors
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        # Check for 'error' or 'message' key
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    error_msg = str(error[0])
+                    # Customize default DRF messages to include field name
+                    field_name = field.replace('_', ' ').title()
+                    if error_msg == 'This field may not be blank.':
+                        return f"{field_name} cannot be empty."
+                    if error_msg == 'This field is required.':
+                        return f"{field_name} is required."
+                    if error_msg == 'Ensure this field has at least 8 characters.':
+                        return f"{field_name} must be at least 8 characters long."
+                    return f"{field_name}: {error_msg}"
+                elif isinstance(error, dict):
+                    # Direct dictionary error
+                    return error.get('error', error.get('message', str(error)))
+                return f"{field.replace('_', ' ').title()}: {str(error)}"
+    elif isinstance(errors, list) and errors:
+        # Handle list of errors (unlikely)
+        if isinstance(errors[0], dict):
+            return errors[0].get('error', errors[0].get('message', str(errors[0])))
+        return str(errors[0])
+    return 'Invalid input provided.'
+
 
 class SendOTPView(generics.GenericAPIView):
     """Sends OTP to email or phone for verification."""
@@ -73,18 +112,8 @@ class SendOTPView(generics.GenericAPIView):
         """Sends OTP via email or SMS with auto-detection of identifier type."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid input data.'
-            if 'identifier' in serializer.errors:
-                if isinstance(serializer.errors['identifier'], dict) and 'error' in serializer.errors['identifier']:
-                    error_message = serializer.errors['identifier']['error']
-                elif isinstance(serializer.errors['identifier'], list):
-                    error_message = serializer.errors['identifier'][0]
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -107,7 +136,6 @@ class SendOTPView(generics.GenericAPIView):
         
         if identifier_type == 'email':
             # Use Twilio SendGrid for email
-            
             email_sent = send_otp_email(identifier, otp.otp_code, purpose)
             
             # Handle email sending failure in production
@@ -209,18 +237,8 @@ class VerifyOTPView(generics.GenericAPIView):
         """Validates and marks OTP as verified."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid input data.'
-            if 'identifier' in serializer.errors:
-                if isinstance(serializer.errors['identifier'], dict) and 'error' in serializer.errors['identifier']:
-                    error_message = serializer.errors['identifier']['error']
-                elif isinstance(serializer.errors['identifier'], list):
-                    error_message = serializer.errors['identifier'][0]
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -302,25 +320,13 @@ class RegisterView(generics.CreateAPIView):
         }
     )
     
-    
     def post(self, request, *args, **kwargs):
         """Creates a student user with trial information."""
         # Validate request data
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid registration data.'
-            if 'username' in serializer.errors and isinstance(serializer.errors['username'], list):
-                error_message = serializer.errors['username'][0]
-            elif 'email' in serializer.errors and isinstance(serializer.errors['email'], dict) and 'error' in serializer.errors['email']:
-                error_message = serializer.errors['email']['error']
-            elif 'phone_number' in serializer.errors and isinstance(serializer.errors['phone_number'], dict) and 'error' in serializer.errors['phone_number']:
-                error_message = serializer.errors['phone_number']['error']
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -336,11 +342,6 @@ class RegisterView(generics.CreateAPIView):
         response_data = {
             'message': 'Registration successful! Please login to continue.',
         }
-        if user.role == 'student' and user.trial_end_date:
-            response_data['trial_info'] = {
-                'trial_ends_at': user.trial_end_date.isoformat(),
-                'trial_duration_seconds': user.trial_remaining_seconds
-            }
         
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -361,11 +362,7 @@ class LoginView(generics.GenericAPIView):
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
                         'access': openapi.Schema(type=openapi.TYPE_STRING),
                         'refresh': openapi.Schema(type=openapi.TYPE_STRING),
-                        'user_type': openapi.Schema(type=openapi.TYPE_STRING),
-                        'is_trial': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                        'has_purchased': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                        'trial_ends_at': openapi.Schema(type=openapi.TYPE_STRING, format='date-time'),
-                        'trial_remaining_seconds': openapi.Schema(type=openapi.TYPE_INTEGER)
+                        'user_type': openapi.Schema(type=openapi.TYPE_STRING)
                     }
                 )
             ),
@@ -402,20 +399,11 @@ class LoginView(generics.GenericAPIView):
         }
     )
     def post(self, request):
-        """Authenticates user and returns JWT tokens with trial info for students."""
+        """Authenticates user and returns JWT tokens."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid login credentials.'
-            if 'identifier' in serializer.errors and isinstance(serializer.errors['identifier'], dict) and 'error' in serializer.errors['identifier']:
-                error_message = serializer.errors['identifier']['error']
-            elif 'identifier' in serializer.errors and isinstance(serializer.errors['identifier'], list):
-                error_message = serializer.errors['identifier'][0]
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -427,6 +415,10 @@ class LoginView(generics.GenericAPIView):
                     'status': status.HTTP_403_FORBIDDEN
                 }, status=status.HTTP_403_FORBIDDEN)
                 
+            # Update last_login
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+            
             refresh = RefreshToken.for_user(user)
             
             response_data = {
@@ -474,7 +466,8 @@ class LogoutView(generics.GenericAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING)
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER, description="HTTP status code")
                     }
                 )
             ),
@@ -503,7 +496,8 @@ class LogoutView(generics.GenericAPIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response({
-                'message': 'Logout successful.'
+                'message': 'Logout successful.',
+                'status': status.HTTP_205_RESET_CONTENT
             }, status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             logger.error(f"Logout error: {str(e)}")
@@ -564,17 +558,8 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         """Updates authenticated user's profile."""
         serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
         if not serializer.is_valid():
-            error_message = 'Invalid profile update data.'
-            if 'email' in serializer.errors and isinstance(serializer.errors['email'], dict) and 'error' in serializer.errors['email']:
-                error_message = serializer.errors['email']['error']
-            elif 'phone_number' in serializer.errors and isinstance(serializer.errors['phone_number'], dict) and 'error' in serializer.errors['phone_number']:
-                error_message = serializer.errors['phone_number']['error']
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -611,27 +596,7 @@ class TeacherRegisterView(generics.CreateAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
-                        'access': openapi.Schema(type=openapi.TYPE_STRING),
-                        'refresh': openapi.Schema(type=openapi.TYPE_STRING),
-                        'user': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                'course': openapi.Schema(type=openapi.TYPE_STRING),
-                                'batch': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
-                                'weekdaysStartDate': openapi.Schema(type=openapi.TYPE_STRING, format='date', nullable=True),
-                                'weekendStartDate': openapi.Schema(type=openapi.TYPE_STRING, format='date', nullable=True),
-                                'weekdaysStart': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'weekdaysEnd': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'saturdayStart': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'saturdayEnd': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'sundayStart': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'sundayEnd': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                                'email': openapi.Schema(type=openapi.TYPE_STRING),
-                                'phone': openapi.Schema(type=openapi.TYPE_STRING),
-                                'schedule': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT))
-                            }
-                        )
+                        'data': openapi.Schema(type=openapi.TYPE_OBJECT)
                     }
                 )
             ),
@@ -659,11 +624,12 @@ class TeacherRegisterView(generics.CreateAPIView):
         }
     )
     def post(self, request, *args, **kwargs):
-        """Creates a teacher user with JWT tokens and returns all provided data."""
+        """Creates a teacher user and returns detailed profile data."""
+        logger.debug(f"Received teacher registration request: {request.data}")
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             errors = serializer.errors
-            error_message = 'Invalid teacher registration data.'
+            error_message = get_serializer_error_message(errors)
             detailed_errors = {}
             
             # Extract specific field errors
@@ -691,35 +657,11 @@ class TeacherRegisterView(generics.CreateAPIView):
         
         try:
             user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            # Prepare response with all validated data
-            response_data = {
-                'message': 'Teacher registration successful.',
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'name': serializer.validated_data['name'],
-                    'course': serializer.validated_data['course'],
-                    'batch': serializer.validated_data['batch'],
-                    'weekdaysStartDate': serializer.validated_data.get('weekdaysStartDate', None),
-                    'weekendStartDate': serializer.validated_data.get('weekendStartDate', None),
-                    'weekdaysStart': serializer.validated_data.get('weekdaysStart', ''),
-                    'weekdaysEnd': serializer.validated_data.get('weekdaysEnd', ''),
-                    'saturdayStart': serializer.validated_data.get('saturdayStart', ''),
-                    'saturdayEnd': serializer.validated_data.get('saturdayEnd', ''),
-                    'sundayStart': serializer.validated_data.get('sundayStart', ''),
-                    'sundayEnd': serializer.validated_data.get('sundayEnd', ''),
-                    'email': serializer.validated_data['email'],
-                    'phone': serializer.validated_data['phone_number'],
-                    'schedule': serializer.validated_data['schedule']
-                }
-            }
-            # Convert dates to ISO format if present
-            if response_data['user']['weekdaysStartDate']:
-                response_data['user']['weekdaysStartDate'] = response_data['user']['weekdaysStartDate'].isoformat()
-            if response_data['user']['weekendStartDate']:
-                response_data['user']['weekendStartDate'] = response_data['user']['weekendStartDate'].isoformat()
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            logger.info(f"Teacher created successfully: {user.id}")
+            return Response({
+                'message': 'Teacher created successfully.',
+                'data': UserSerializer(user, context={'request': request}).data
+            }, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
             logger.error(f"Teacher registration validation error: {str(e)}")
             return Response({
@@ -734,15 +676,15 @@ class TeacherRegisterView(generics.CreateAPIView):
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            
+
 class AdminRegisterView(generics.CreateAPIView):
-    """Registers a new admin user by any user (including unauthorized)."""
+    """Registers a new admin user by any user."""
     queryset = User.objects.all()
     serializer_class = AdminCreateSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated, IsAdmin]  # Restricted to admins
     
     @swagger_auto_schema(
-        operation_description="Register a new admin account (accessible to all users, including unauthorized)",
+        operation_description="Register a new admin account (restricted to admins)",
         responses={
             201: openapi.Response(
                 description="Admin registration successful",
@@ -784,7 +726,7 @@ class AdminRegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             errors = serializer.errors
-            error_message = 'Invalid admin registration data.'
+            error_message = get_serializer_error_message(errors)
             detailed_errors = {}
             
             # Extract specific field errors
@@ -947,7 +889,8 @@ class ChangePasswordView(generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING)
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error'])
                     }
                 )
             ),
@@ -956,8 +899,18 @@ class ChangePasswordView(generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
-                        'status': openapi.Schema(type=openapi.TYPE_INTEGER, description="HTTP status code")
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error'])
+                    }
+                )
+            ),
+            401: openapi.Response(
+                description="Unauthorized",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error'])
                     }
                 )
             ),
@@ -966,8 +919,8 @@ class ChangePasswordView(generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
-                        'status': openapi.Schema(type=openapi.TYPE_INTEGER, description="HTTP status code")
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error'])
                     }
                 )
             )
@@ -975,33 +928,25 @@ class ChangePasswordView(generics.UpdateAPIView):
     )
     def update(self, request, *args, **kwargs):
         """Updates user's password."""
-        # Validate password change data
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid password change data.'
-            if 'old_password' in serializer.errors and isinstance(serializer.errors['old_password'], dict) and 'error' in serializer.errors['old_password']:
-                error_message = serializer.errors['old_password']['error']
-            elif 'new_password' in serializer.errors and isinstance(serializer.errors['new_password'], dict) and 'error' in serializer.errors['new_password']:
-                error_message = serializer.errors['new_password']['error']
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
+            logger.error(f"Serializer errors: {serializer.errors}")  # Log errors for debugging
             return Response({
-                'error': error_message,
-                'status': status.HTTP_400_BAD_REQUEST
+                'message': get_serializer_error_message(serializer.errors),
+                'message_type': 'error'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             serializer.save()
             return Response({
-                'message': 'Password changed successfully.'
+                'message': 'Password updated successfully.',
+                'message_type': 'success'
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Password change error: {str(e)}")
             return Response({
-                'error': 'Failed to change password. Please try again.',
-                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
+                'message': 'Failed to update password. Please try again.',
+                'message_type': 'error'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def get_object(self):
@@ -1023,7 +968,8 @@ class ForgotPasswordView(generics.GenericAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING)
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER, description="HTTP status code")
                     }
                 )
             ),
@@ -1053,17 +999,8 @@ class ForgotPasswordView(generics.GenericAPIView):
         """Resets user's password after OTP verification."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            error_message = 'Invalid password reset data.'
-            if 'identifier' in serializer.errors and isinstance(serializer.errors['identifier'], dict) and 'error' in serializer.errors['identifier']:
-                error_message = serializer.errors['identifier']['error']
-            elif 'new_password' in serializer.errors and isinstance(serializer.errors['new_password'], dict) and 'error' in serializer.errors['new_password']:
-                error_message = serializer.errors['new_password']['error']
-            elif 'non_field_errors' in serializer.errors:
-                error_message = serializer.errors['non_field_errors'][0]
-            elif serializer.errors:
-                error_message = list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
             return Response({
-                'error': error_message,
+                'error': get_serializer_error_message(serializer.errors),
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -1159,8 +1096,9 @@ class TrialStatusView(generics.GenericAPIView):
             return Response({
                 'error': 'Failed to retrieve trial status. Please try again.',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
-        
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+
+     
 class UserStatusCountView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
     
