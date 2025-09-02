@@ -1,6 +1,6 @@
 
 import { Container, Row, Col } from "reactstrap"
-import ApexBarChart from "./BarChart"
+// import ApexBarChart from "./BarChart/"
 
 const Dashboard = () => {
   return (
@@ -11,9 +11,9 @@ const Dashboard = () => {
         </Col>
       </Row>
       <Row>
-        <Col md="6">
+        {/* <Col md="6">
           <ApexBarChart />
-        </Col>
+        </Col> */}
       </Row>
     </Container>
   )
