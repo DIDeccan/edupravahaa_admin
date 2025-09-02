@@ -1,43 +1,165 @@
-// ** Redux Imports
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
+import apiList from '../../api.json'
+ 
+const API_URL = import.meta.env.VITE_API_BASE_URL;
+ 
+export const loginUser = createAsyncThunk(
+  'auth/loginUser',
+  async (credentials, { rejectWithValue }) => {
 
-// ** UseJWT import to get config
-import useJwt from '@src/auth/jwt/useJwt'
-
-const config = useJwt.jwtConfig
-
-const initialUser = () => {
-  const item = window.localStorage.getItem('userData')
-  //** Parse stored json or if none return initialValue
-  return item ? JSON.parse(item) : {}
-}
-
-export const authSlice = createSlice({
-  name: 'authentication',
-  initialState: {
-    userData: initialUser()
-  },
-  reducers: {
-    handleLogin: (state, action) => {
-      state.userData = action.payload
-      state[config.storageTokenKeyName] = action.payload[config.storageTokenKeyName]
-      state[config.storageRefreshTokenKeyName] = action.payload[config.storageRefreshTokenKeyName]
-      localStorage.setItem('userData', JSON.stringify(action.payload))
-      localStorage.setItem(config.storageTokenKeyName, JSON.stringify(action.payload.accessToken))
-      localStorage.setItem(config.storageRefreshTokenKeyName, JSON.stringify(action.payload.refreshToken))
-    },
-    handleLogout: state => {
-      state.userData = {}
-      state[config.storageTokenKeyName] = null
-      state[config.storageRefreshTokenKeyName] = null
-      // ** Remove user, accessToken & refreshToken from localStorage
-      localStorage.removeItem('userData')
-      localStorage.removeItem(config.storageTokenKeyName)
-      localStorage.removeItem(config.storageRefreshTokenKeyName)
+    try {
+      const response = await axios.post(API_URL + apiList.auth.login, credentials);
+      return response.data;
+ 
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
   }
-})
+);
+ 
+export const getProfile = createAsyncThunk(
+  'auth/getProfile',
+  async (_, { rejectWithValue, getState }) => {
+    console.log("click")
+    try {
+      const token = getState().auth.token;
+      const response = await axios.get(API_URL + apiList.auth.getProfile, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+// logout API
+export const logoutUser = createAsyncThunk(
+  'auth/logoutUser',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { auth } = getState();
+      const refreshToken = auth.refreshToken;
+      const accessToken = auth.token;
+      // console.log("acc",accessToken)
+ 
+      const response = await axios.post(
+        API_URL + apiList.auth.logout,
+        { refresh: refreshToken },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+ 
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+ 
+ 
 
-export const { handleLogin, handleLogout } = authSlice.actions
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+  user: JSON.parse(localStorage.getItem('userData')) || null,
+  token: localStorage.getItem('access') || null,
+  refreshToken: localStorage.getItem('refresh') || null,
+  loading: false,
+  error: null,
+  success: false,
+},
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('userData');
+    },
+  },
+  extraReducers: (builder) => {
+        // Login
+    builder.addCase(loginUser.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(loginUser.fulfilled, (state, action) => {
+      // console.log("Login successful:", action.payload);
+ 
+      state.loading = false;
+ 
+      // ✅ Save tokens properly
+      state.token = action.payload.access;
+      state.refreshToken = action.payload.refresh;
+ 
+      state.user = {
+        user_type: action.payload.user_type,
+        is_trial: action.payload.is_trial,
+        has_purchased: action.payload.has_purchased,
+        trial_ends_at: action.payload.trial_ends_at,
+        trial_remaining_seconds: action.payload.trial_remaining_seconds,
+      };
+ 
+      // ✅ Store in localStorage
+      localStorage.setItem('access', action.payload.access);
+      localStorage.setItem('refresh', action.payload.refresh);
+      localStorage.setItem('userData', JSON.stringify(state.user));
+    });
+ 
+    builder.addCase(loginUser.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+ 
+    // Profile
+    builder.addCase(getProfile.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(getProfile.fulfilled, (state, action) => {
+      state.loading = false;
+      state.user = action.payload.data;
+      localStorage.setItem("userData", JSON.stringify(action.payload.data));
+    });
+    builder.addCase(getProfile.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+ 
 
-export default authSlice.reducer
+    // log out
+     builder.addCase(logoutUser.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(logoutUser.fulfilled, (state) => {
+      state.loading = false;
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+ 
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('userData');
+    });
+    builder.addCase(logoutUser.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('userData');
+    });
+  },
+ 
+});
+ 
+export const { logout } = authSlice.actions;
+export default authSlice.reducer;
+ 
+ 

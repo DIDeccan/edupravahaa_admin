@@ -10,7 +10,7 @@ import { isUserLoggedIn } from '@utils'
 
 // ** Store & Actions
 import { useDispatch } from 'react-redux'
-import { handleLogout } from '@store/authentication'
+import { logoutUser } from '@store/authentication'
 
 // ** Third Party Components
 import { User, Mail, CheckSquare, MessageSquare, Settings, CreditCard, HelpCircle, Power } from 'react-feather'
@@ -48,7 +48,7 @@ const UserDropdown = () => {
         <Avatar img={userAvatar} imgHeight='40' imgWidth='40' status='online' />
       </DropdownToggle>
       <DropdownMenu end>
-        <DropdownItem tag={Link} to='/login' onClick={() => dispatch(handleLogout())}>
+        <DropdownItem tag={Link} to='/login' onClick={() => dispatch(logoutUser())}>
           <Power size={14} className='me-75' />
           <span className='align-middle'>Logout</span>
         </DropdownItem>
