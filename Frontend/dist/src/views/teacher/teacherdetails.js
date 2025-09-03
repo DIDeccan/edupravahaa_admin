@@ -1,33 +1,33 @@
 // ** React Imports
-import { Fragment, useState, forwardRef } from 'react'
+import { Fragment, useState, forwardRef, useEffect } from 'react'
 
 // ** Add New Modal Component
 import AddNewModal from './addteacherdetails'
 
+// ** Redux Imports
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchTeachers } from '../../redux/teacherSlice'
+
 // ** Third Party Components
 import ReactPaginate from 'react-paginate'
 import DataTable from 'react-data-table-component'
-import { ChevronDown, Share, Printer, FileText, File, Grid, Copy, Plus } from 'react-feather'
+import { ChevronDown } from 'react-feather'
 import {
   Card,
   CardHeader,
   CardTitle,
   Button,
-  UncontrolledButtonDropdown,
-  DropdownToggle,
-  DropdownMenu,
-  DropdownItem,
   Input,
   Label,
   Row,
   Col
 } from 'reactstrap'
 
-// ** Sample Table Columns
+// ** Table Columns
 const columns = [
   {
     name: 'Full Name',
-    selector: row => row.full_name,
+    selector: row => row.first_name,
     sortable: true
   },
   {
@@ -37,7 +37,7 @@ const columns = [
   },
   {
     name: 'Post',
-    selector: row => row.post,
+    selector: row => row.role,
     sortable: true
   },
   {
@@ -62,40 +62,6 @@ const columns = [
   }
 ]
 
-// ** Sample Data
-const data = [
-  {
-    id: 1,
-    full_name: 'John Doe',
-    email: 'john@example.com',
-    post: 'Software Engineer',
-    age: '28',
-    salary: '$5000',
-    start_date: '2022-01-10',
-    status: 1
-  },
-  {
-    id: 2,
-    full_name: 'Jane Smith',
-    email: 'jane@example.com',
-    post: 'UI/UX Designer',
-    age: '25',
-    salary: '$4200',
-    start_date: '2022-02-15',
-    status: 2
-  },
-  {
-    id: 3,
-    full_name: 'Mike Johnson',
-    email: 'mike@example.com',
-    post: 'Project Manager',
-    age: '35',
-    salary: '$7500',
-    start_date: '2021-12-01',
-    status: 3
-  }
-]
-
 // ** Bootstrap Checkbox Component
 const BootstrapCheckbox = forwardRef(({ onClick, ...rest }, ref) => (
   <div className='custom-control custom-checkbox'>
@@ -104,38 +70,47 @@ const BootstrapCheckbox = forwardRef(({ onClick, ...rest }, ref) => (
   </div>
 ))
 
-const DataTableWithButtons = () => {
+const TeacherDetails = () => {
+  const dispatch = useDispatch();
+
+  const { list, loading, error } = useSelector((state) => state.teachers);
+
+
+
   // ** States
   const [modal, setModal] = useState(false)
   const [currentPage, setCurrentPage] = useState(0)
   const [searchValue, setSearchValue] = useState('')
   const [filteredData, setFilteredData] = useState([])
 
-  // ** Function to handle Modal toggle
+  const API_URL = import.meta.env.VITE_API_BASE_URL // API base URL
+  const token = localStorage.getItem('token') // get token dynamically
+
+
+
+  // ** Fetch teachers on load
+  useEffect(() => {
+    dispatch(fetchTeachers())
+  }, [dispatch])
+
+  // ** Modal toggle
   const handleModal = () => setModal(!modal)
 
-  // ** Function to handle filter
+  // ** Filter
   const handleFilter = e => {
     const value = e.target.value
-    let updatedData = []
     setSearchValue(value)
-
     if (value.length) {
-      updatedData = data.filter(item => {
-        return (
-          item.full_name.toLowerCase().includes(value.toLowerCase()) ||
-          item.email.toLowerCase().includes(value.toLowerCase()) ||
-          item.post.toLowerCase().includes(value.toLowerCase()) ||
-          item.age.toLowerCase().includes(value.toLowerCase()) ||
-          item.salary.toLowerCase().includes(value.toLowerCase()) ||
-          item.start_date.toLowerCase().includes(value.toLowerCase())
-        )
-      })
+      const updatedData = list.filter(item =>
+        (item.name && item.name.toLowerCase().includes(value.toLowerCase())) ||
+        (item.email && item.email.toLowerCase().includes(value.toLowerCase())) ||
+        (item.subject && item.subject.toLowerCase().includes(value.toLowerCase()))
+      )
       setFilteredData(updatedData)
     }
   }
 
-  // ** Function to handle Pagination
+  // ** Pagination
   const handlePagination = page => {
     setCurrentPage(page.selected)
   }
@@ -146,8 +121,8 @@ const DataTableWithButtons = () => {
       previousLabel=''
       nextLabel=''
       forcePage={currentPage}
-      onPageChange={page => handlePagination(page)}
-      pageCount={searchValue.length ? filteredData.length / 7 : data.length / 7 || 1}
+      onPageChange={handlePagination}
+      pageCount={searchValue.length ? Math.ceil(filteredData.length / 7) : Math.ceil(list.length / 7) || 1}
       breakLabel='...'
       pageRangeDisplayed={2}
       marginPagesDisplayed={2}
@@ -164,13 +139,13 @@ const DataTableWithButtons = () => {
     />
   )
 
-  // ** CSV Export function (same as yours)
-  function convertArrayOfObjectsToCSV(array) {
-    let result
+  // ** CSV Export functions
+  const convertArrayOfObjectsToCSV = array => {
+    if (!array || !array.length) return null
     const columnDelimiter = ','
     const lineDelimiter = '\n'
-    const keys = Object.keys(data[0])
-    result = ''
+    const keys = Object.keys(array[0])
+    let result = ''
     result += keys.join(columnDelimiter)
     result += lineDelimiter
     array.forEach(item => {
@@ -185,11 +160,11 @@ const DataTableWithButtons = () => {
     return result
   }
 
-  function downloadCSV(array) {
+  const downloadCSV = array => {
     const link = document.createElement('a')
     let csv = convertArrayOfObjectsToCSV(array)
-    if (csv === null) return
-    const filename = 'export.csv'
+    if (!csv) return
+    const filename = 'teachers.csv'
     if (!csv.match(/^data:text\/csv/i)) {
       csv = `data:text/csv;charset=utf-8,${csv}`
     }
@@ -204,44 +179,57 @@ const DataTableWithButtons = () => {
         <CardHeader className='flex-md-row flex-column align-md-items-center align-items-start border-bottom'>
           <CardTitle tag='h4'>Teacher Details</CardTitle>
           <div className='d-flex mt-md-0 mt-1'>
-            <Button className='ml-2' color='primary' onClick={handleModal}>
+            <Button color='primary' onClick={handleModal}>
               <span className='align-middle ml-50'>Add Instructor</span>
+            </Button>
+            <Button color='success' className='ml-1' onClick={() => downloadCSV(searchValue.length ? filteredData : list)}>
+              Export CSV
             </Button>
           </div>
         </CardHeader>
+
         <Row className='justify-content-end mx-0'>
-          <Col className='d-flex align-items-center justify-content-end mt-1' md='2' sm='12'>
-            <Label className='mr-1' for='search-input'>
-              Search 
-            </Label>
-            &nbsp;
+          <Col md='3' sm='12' className='d-flex align-items-center justify-content-end mt-1'>
+            <Label for='search-input' className='mr-1'>Search</Label>
             <Input
-              className='dataTable-filter mb-50'
-              type='text'
-              bsSize='sm'
               id='search-input'
+              bsSize='sm'
+              type='text'
+              className='dataTable-filter mb-50'
               value={searchValue}
               onChange={handleFilter}
+              placeholder="Search teacher..."
             />
           </Col>
         </Row>
-        <DataTable
-          noHeader
-          pagination
-          selectableRows
-          columns={columns}
-          paginationPerPage={7}
-          className='react-dataTable'
-          sortIcon={<ChevronDown size={10} />}
-          paginationDefaultPage={currentPage + 1}
-          paginationComponent={CustomPagination}
-          data={searchValue.length ? filteredData : data}
-          selectableRowsComponent={BootstrapCheckbox}
-        />
+
+        {loading ? (
+          <p className='p-2'>Loading...</p>
+        ) : error ? (
+          <p className='p-2 text-danger'>Error: {error}</p>
+        ) : (
+          <DataTable
+            noHeader
+            pagination
+            selectableRows
+            columns={columns}
+            paginationPerPage={7}
+            className='react-dataTable'
+            sortIcon={<ChevronDown size={10} />}
+            paginationDefaultPage={currentPage + 1}
+            paginationComponent={CustomPagination}
+            data={searchValue.length ? filteredData : list}
+            selectableRowsComponent={BootstrapCheckbox}
+          />
+        )}
       </Card>
+
       <AddNewModal open={modal} handleModal={handleModal} />
     </Fragment>
   )
 }
 
-export default DataTableWithButtons
+export default TeacherDetails
+
+
+

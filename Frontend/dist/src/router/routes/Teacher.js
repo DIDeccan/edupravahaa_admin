@@ -1,6 +1,6 @@
 import { lazy } from 'react'
 
-const TeacherDetails = lazy(() => import('../../views/teacher'))
+const TeacherDetails = lazy(() => import('../../views/teacher/teacherdetails'))
 
 const TeacherRoutes = [
   {
