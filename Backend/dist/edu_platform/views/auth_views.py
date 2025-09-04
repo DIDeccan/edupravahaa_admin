@@ -12,14 +12,14 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
 from edu_platform.permissions.auth_permissions import IsAdmin, IsTeacher, IsStudent
-from edu_platform.models import User, OTP, CourseSubscription
+from edu_platform.models import User, OTP, CourseSubscription,TeacherProfile
 from edu_platform.utility.email_services import send_otp_email
 from edu_platform.utility.sms_services import get_sms_service, ConsoleSMSService
 from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,TeacherListSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer
 )
 import logging
 import phonenumbers
@@ -675,38 +675,7 @@ class TeacherRegisterView(generics.CreateAPIView):
                 'error': f'Failed to register teacher: {str(e)}',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class TeacherListView(generics.ListAPIView):
-    """Lists all registered teachers."""
-    queryset = User.objects.filter(role='teacher').select_related('teacher_profile')
-    serializer_class = TeacherListSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    @swagger_auto_schema(
-        operation_description="View all registered teachers",
-        responses={
-            200: TeacherListSerializer(many=True),
-            500: openapi.Response(
-                description="Server error",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
-                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
-                    }
-                )
-            )
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        try:
-            return super().get(request, *args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error fetching teacher list: {str(e)}")
-            return Response({
-                'error': f'Failed to fetch teachers: {str(e)}',
-                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 class AdminRegisterView(generics.CreateAPIView):
     """Registers a new admin user by any user."""
@@ -810,7 +779,7 @@ class AdminRegisterView(generics.CreateAPIView):
 
 class ListTeachersView(generics.ListAPIView):
     """Lists all teacher users for admin."""
-    serializer_class = UserSerializer
+    serializer_class = ListTeachersSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     
     @swagger_auto_schema(
@@ -855,7 +824,7 @@ class ListTeachersView(generics.ListAPIView):
     
     def get_queryset(self):
         """Returns all teacher users."""
-        return User.objects.filter(role='teacher')
+        return TeacherProfile.objects.select_related('user').all()
 
 
 class ListStudentsView(generics.ListAPIView):

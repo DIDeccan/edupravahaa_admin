@@ -565,7 +565,7 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
             })
 
 
-class TeacherListSerializer(serializers.ModelSerializer):
+class ListTeachersSerializer(serializers.ModelSerializer):
     """Serializes teacher data for listing."""
     name = serializers.CharField(source='user.get_full_name', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
