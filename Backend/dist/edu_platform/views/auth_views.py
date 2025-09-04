@@ -19,7 +19,7 @@ from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer,ListStudentsSerializer
 )
 import logging
 import phonenumbers
@@ -829,7 +829,7 @@ class ListTeachersView(generics.ListAPIView):
 
 class ListStudentsView(generics.ListAPIView):
     """Lists all student users for admin."""
-    serializer_class = UserSerializer
+    serializer_class = ListStudentsSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     
     @swagger_auto_schema(

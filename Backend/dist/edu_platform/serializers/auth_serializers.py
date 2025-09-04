@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from django.db.models import Q
-from edu_platform.models import User, TeacherProfile, OTP, StudentProfile, Course, ClassSchedule
+from edu_platform.models import User, TeacherProfile, OTP, StudentProfile, Course, ClassSchedule,CourseEnrollment
 from edu_platform.serializers.course_serializers import CourseSerializer
 from edu_platform.utility.email_services import send_teacher_credentials
 import re
@@ -592,6 +592,40 @@ class ListTeachersSerializer(serializers.ModelSerializer):
         for schedule in schedules:
             batches.update(schedule.batches)
         return list(batches)
+
+class ListStudentsSerializer(serializers.ModelSerializer):
+    """Serializes student data for admin listing."""
+    name = serializers.CharField(source='get_full_name', read_only=True)
+    email = serializers.EmailField(read_only=True)
+    phone = serializers.CharField(source='phone_number', read_only=True)
+    enrolled_courses = serializers.SerializerMethodField()
+    batches = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    registration_date = serializers.DateTimeField(source='date_joined', format='%Y-%m-%d %H:%M', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'phone', 'enrolled_courses', 'batches', 'registration_date', 'status']
+
+    def get_enrolled_courses(self, obj):
+        """Fetch courses assigned to this student."""
+        enrollments = CourseEnrollment.objects.filter(student=obj)
+        return [enrollment.course.name for enrollment in enrollments]
+
+    def get_batches(self, obj):
+        enrollments = CourseEnrollment.objects.filter(student=obj)
+        batch_set = set()
+        for enrollment in enrollments:
+            if enrollment.batch:  # make sure it exists
+                batch_set.add(enrollment.batch)  # add whole string, not characters
+        return list(batch_set)
+
+
+    def get_status(self, obj):
+        """Return Active/Inactive status."""
+        return "Active" if obj.is_active else "Inactive"
+
+
 
 class AdminCreateSerializer(serializers.ModelSerializer):
     """Handles admin user creation by any user."""
