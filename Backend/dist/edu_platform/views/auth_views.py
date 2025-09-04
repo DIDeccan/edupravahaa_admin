@@ -19,7 +19,7 @@ from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,TeacherListSerializer
 )
 import logging
 import phonenumbers
@@ -676,6 +676,37 @@ class TeacherRegisterView(generics.CreateAPIView):
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class TeacherListView(generics.ListAPIView):
+    """Lists all registered teachers."""
+    queryset = User.objects.filter(role='teacher').select_related('teacher_profile')
+    serializer_class = TeacherListSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    @swagger_auto_schema(
+        operation_description="View all registered teachers",
+        responses={
+            200: TeacherListSerializer(many=True),
+            500: openapi.Response(
+                description="Server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            return super().get(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error fetching teacher list: {str(e)}")
+            return Response({
+                'error': f'Failed to fetch teachers: {str(e)}',
+                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AdminRegisterView(generics.CreateAPIView):
     """Registers a new admin user by any user."""

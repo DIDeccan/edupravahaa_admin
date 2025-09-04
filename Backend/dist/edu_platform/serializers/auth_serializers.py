@@ -3,10 +3,14 @@ from django.contrib.auth import authenticate, get_user_model
 from django.db.models import Q
 from edu_platform.models import User, TeacherProfile, OTP, StudentProfile, Course, ClassSchedule
 from edu_platform.serializers.course_serializers import CourseSerializer
+from edu_platform.utility.email_services import send_teacher_credentials
 import re
 from django.utils import timezone
 from datetime import datetime, timedelta
 import logging
+from django.core.mail import send_mail
+from django.conf import settings
+import uuid
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -214,6 +218,7 @@ class RegisterSerializer(serializers.Serializer):
         """Creates a student user and deletes used OTPs."""
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
+        validated_data['username'] = name 
         
         user = User.objects.create_user(
             **validated_data,
@@ -243,6 +248,7 @@ class RegisterSerializer(serializers.Serializer):
 
 class TeacherCreateSerializer(serializers.ModelSerializer):
     """Handles teacher user creation by admin."""
+    #username=serializers.CharField(write_only=True,required=True)
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, required=True)
     name = serializers.CharField(max_length=150, required=True, allow_blank=False)
@@ -548,6 +554,8 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
                     schedule=schedule
                 )
             
+            send_teacher_credentials(user.email, name, password)
+            
             logger.info(f"Teacher created successfully: {user.id}")
             return user
         except Exception as e:
@@ -556,6 +564,34 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
                 'error': f'Failed to create teacher: {str(e)}'
             })
 
+
+class TeacherListSerializer(serializers.ModelSerializer):
+    """Serializes teacher data for listing."""
+    name = serializers.CharField(source='user.get_full_name', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone_number', read_only=True)
+    course_assigned = serializers.SerializerMethodField(read_only=True)
+    batches = serializers.SerializerMethodField(read_only=True)
+    status = serializers.BooleanField(source='user.is_active', read_only=True)
+
+    class Meta:
+        model = TeacherProfile
+        fields = ['name', 'email', 'phone', 'course_assigned', 'batches', 'status']
+
+    def get_course_assigned(self, obj):
+        """Fetch assigned courses from ClassSchedule."""
+        teacher_user = getattr(obj, 'user', obj)  # if obj has user, use it; else obj itself
+        schedules = ClassSchedule.objects.filter(teacher=teacher_user)
+        return [schedule.course.name for schedule in schedules]
+
+    def get_batches(self, obj):
+        """Fetch batches from ClassSchedule."""
+        teacher_user = getattr(obj, 'user', obj)
+        schedules = ClassSchedule.objects.filter(teacher=teacher_user)
+        batches = set()
+        for schedule in schedules:
+            batches.update(schedule.batches)
+        return list(batches)
 
 class AdminCreateSerializer(serializers.ModelSerializer):
     """Handles admin user creation by any user."""
@@ -898,4 +934,4 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 class UserStatusCountSerializer(serializers.Serializer):
     active_users = serializers.IntegerField()
     registered_users = serializers.IntegerField()
-    deactivated_users = serializers.IntegerField()        
+    deactivated_users = serializers.IntegerField()
