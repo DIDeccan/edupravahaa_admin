@@ -1,11 +1,11 @@
 import { Col } from 'reactstrap'
-import Teachertable from './teacherdetails'
-const TeacherDetails = () => {
+import TeacherDetails from './teacherdetails'
+const TeacherDetailsPage = () => {
     return (
         <Col sm='12'>
-            <Teachertable />
+            <TeacherDetails />
         </Col>
     )
 }
 
-export default TeacherDetails
+export default TeacherDetailsPage

@@ -1,28 +1,28 @@
 // ** React Imports
 import { useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
- 
+
 // ** Custom Hooks
 import { useSkin } from '@hooks/useSkin'
 import useJwt from '@src/auth/jwt/useJwt'
- 
+
 // ** Third Party Components
 import toast from 'react-hot-toast'
 import { useDispatch } from 'react-redux'
 import { useForm, Controller } from 'react-hook-form'
 import { Facebook, Twitter, Mail, GitHub, HelpCircle, Coffee, X } from 'react-feather'
- 
- 
+
+
 // ** Context
 import { AbilityContext } from '@src/utility/context/Can'
- 
+
 // ** Custom Components
 import Avatar from '@components/avatar'
 import InputPasswordToggle from '@components/input-password-toggle'
- 
+
 // ** Utils
 import { getHomeRouteForLoggedInUser } from '@utils'
- 
+
 // ** Reactstrap Imports
 import {
   Row,
@@ -37,15 +37,15 @@ import {
   FormFeedback,
   UncontrolledTooltip
 } from 'reactstrap'
- 
+
 // ** Illustrations Imports
 import illustrationsLight from '@src/assets/images/pages/login-v2.svg'
 import illustrationsDark from '@src/assets/images/pages/login-v2-dark.svg'
- 
+
 // ** Styles
 import '@styles/react/pages/page-authentication.scss'
 import { getProfile, loginUser } from '../../../redux/authentication'
- 
+
 const ToastContent = ({ t, name, role }) => {
   return (
     <div className='d-flex'>
@@ -62,12 +62,12 @@ const ToastContent = ({ t, name, role }) => {
     </div>
   )
 }
- 
+
 const defaultValues = {
   password: '1234',
   loginEmail: 'ganga@gmail.com'
 }
- 
+
 const Login = () => {
   // ** Hooks
   const { skin } = useSkin()
@@ -80,64 +80,65 @@ const Login = () => {
     handleSubmit,
     formState: { errors }
   } = useForm({ defaultValues })
- 
+
   const source = skin === 'dark' ? illustrationsDark : illustrationsLight
- 
-const onSubmit = (data) => {
-  if (Object.values(data).every(field => field.length > 0)) {
-    console.log("clikc")
-    dispatch(loginUser({ identifier: data.loginEmail, password: data.password }))
-      .unwrap()
-      .then(res => {
-        // ✅ Only continue if access token is there
-        if (res.access) {
-          // Call profile API
-          dispatch(getProfile())
-            .unwrap()
-            .then(profile => {
-              const fullUser = { ...profile.data, accessToken: res.access, refreshToken: res.refresh };
-              console.log('Full User Data:', fullUser);
-               navigate(getHomeRouteForLoggedInUser(fullUser.role))
-              toast(t => (
-                <ToastContent
-                  t={t}
-                  role={profile.role || res.user_type || 'student'}
-                  name={profile.fullName || profile.username || 'User'}
-                />
-              ));
-            })
-            .catch(() => {
-              setError('loginEmail', {
-                type: 'manual',
-                message: 'Failed to fetch profile. Try again.'
+
+  const onSubmit = (data) => {
+    if (Object.values(data).every(field => field.length > 0)) {
+      console.log("clikc")
+      dispatch(loginUser({ identifier: data.loginEmail, password: data.password }))
+        .unwrap()
+        .then(res => {
+          // ✅ Only continue if access token is there
+          if (res.access) {
+            
+            // Call profile API
+            dispatch(getProfile())
+              .unwrap()
+              .then(profile => {
+                const fullUser = { ...profile.data, accessToken: res.access, refreshToken: res.refresh };
+                console.log('Full User Data:', fullUser);
+                navigate(getHomeRouteForLoggedInUser(fullUser.role))
+                toast(t => (
+                  <ToastContent
+                    t={t}
+                    role={profile.role || res.user_type || 'student'}
+                    name={profile.fullName || profile.username || 'User'}
+                  />
+                ));
+              })
+              .catch(() => {
+                setError('loginEmail', {
+                  type: 'manual',
+                  message: 'Failed to fetch profile. Try again.'
+                });
               });
+          } else {
+            setError('loginEmail', {
+              type: 'manual',
+              message: 'Login failed: No access token'
             });
-        } else {
+          }
+        })
+        .catch(err => {
           setError('loginEmail', {
             type: 'manual',
-            message: 'Login failed: No access token'
+            message: err?.error || 'Login failed'
           });
-        }
-      })
-      .catch(err => {
-        setError('loginEmail', {
-          type: 'manual',
-          message: err?.error || 'Login failed'
         });
-      });
-  } else {
-    for (const key in data) {
-      if (data[key].length === 0) {
-        setError(key, { type: 'manual' });
+    } else {
+      for (const key in data) {
+        if (data[key].length === 0) {
+          setError(key, { type: 'manual' });
+        }
       }
     }
-  }
-};
- 
- 
- 
- 
- 
+  };
+
+
+
+
+
   return (
     <div className='auth-wrapper auth-cover'>
       <Row className='auth-inner m-0'>
@@ -202,8 +203,8 @@ const onSubmit = (data) => {
             <CardTitle tag='h2' className='fw-bold mb-1'>
               Welcome to Edu Pravaha! 👋
             </CardTitle>
-           
-       
+
+
             <Form className='auth-login-form mt-2' onSubmit={handleSubmit(onSubmit)}>
               <div className='mb-1'>
                 <Label className='form-label' for='login-email'>
@@ -282,6 +283,6 @@ const onSubmit = (data) => {
     </div>
   )
 }
- 
+
 export default Login
- 
+

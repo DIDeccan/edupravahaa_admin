@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import Flatpickr from 'react-flatpickr'
 import { User, Mail, Calendar, Lock, Phone, X } from 'react-feather'
 import {
@@ -12,9 +13,11 @@ import {
   Input,
   Label
 } from 'reactstrap'
+import { registerTeacher } from '../../redux/teacherSlice'
 import '@styles/react/libs/flatpickr/flatpickr.scss'
 
 const AddNewModal = ({ open, handleModal }) => {
+  const dispatch = useDispatch()
   const [formData, setFormData] = useState({
     name: '',
     course: '',
@@ -38,17 +41,10 @@ const AddNewModal = ({ open, handleModal }) => {
     setFormData({ ...formData, [name]: value })
   }
 
-  const formatTime = date => {
-    return date.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
+  const formatTime = date =>
+    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
 
-  const formatDate = date => {
-    return date.toLocaleDateString('en-CA') // YYYY-MM-DD
-  }
+  const formatDate = date => date.toLocaleDateString('en-CA')
 
   const generateSchedule = () => {
     let schedule = []
@@ -84,19 +80,18 @@ const AddNewModal = ({ open, handleModal }) => {
     return schedule
   }
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
-
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match!')
       return
     }
 
     const schedule = generateSchedule()
-    const payload = { ...formData, schedule }
+    const payload = { ...formData, schedule,confirm_password: formData.confirmPassword }
 
-    console.log('Form Submitted:', payload)
-    // 👉 TODO: Call API here with payload
+    // Dispatch Redux action to register teacher
+    await dispatch(registerTeacher(payload))
 
     handleModal()
   }
@@ -175,8 +170,10 @@ const AddNewModal = ({ open, handleModal }) => {
             </small>
           </FormGroup>
 
-          {/* Weekdays Date & Time */}
-          {formData.batch.includes('weekdays') && (
+          {/* Weekdays & Weekend Date/Time pickers */}
+  
+
+           {formData.batch.includes('weekdays') && (
             <>
               <FormGroup>
                 <Label>Weekdays Course Start Date</Label>
@@ -217,8 +214,10 @@ const AddNewModal = ({ open, handleModal }) => {
             </>
           )}
 
+              
+
           {/* Weekend Date & Time */}
-          {formData.batch.includes('weekend') && (
+           {formData.batch.includes('weekend') && (
             <>
               <FormGroup>
                 <Label>Weekend Course Start Date</Label>
@@ -282,6 +281,8 @@ const AddNewModal = ({ open, handleModal }) => {
               </FormGroup>
             </>
           )}
+
+          {/* ... keep all Flatpickr inputs as before ... */}
 
           {/* Email */}
           <FormGroup>
@@ -359,7 +360,6 @@ const AddNewModal = ({ open, handleModal }) => {
             </InputGroup>
           </FormGroup>
 
-          {/* Submit Button */}
           <Button color='primary' type='submit'>
             Submit
           </Button>

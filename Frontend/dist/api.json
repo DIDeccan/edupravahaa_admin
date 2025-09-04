@@ -2,5 +2,9 @@
     "auth":{
         "login":"/api/auth/login/",
         "getProfile":"/api/auth/profile/"
+    },
+    "teacher":{
+        "teacherList":"/api/auth/admin/teachers/",
+        "registerTeacher":"/api/auth/register/teacher"
     }
 }
