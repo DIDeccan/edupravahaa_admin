@@ -18,3 +18,4 @@ requests==2.31.0
 twilio==9.7.0
 phonenumbers==8.13.52
 python-dotenv==1.0.1
+pandas==2.3.2

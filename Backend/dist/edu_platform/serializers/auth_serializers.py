@@ -218,7 +218,7 @@ class RegisterSerializer(serializers.Serializer):
         """Creates a student user and deletes used OTPs."""
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
-        validated_data['username'] = name 
+        #validated_data['username'] = 'name' 
         
         user = User.objects.create_user(
             **validated_data,
@@ -969,3 +969,30 @@ class UserStatusCountSerializer(serializers.Serializer):
     active_users = serializers.IntegerField()
     registered_users = serializers.IntegerField()
     deactivated_users = serializers.IntegerField()
+
+class StudentNotEnrolledSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    registration_dateTime = serializers.DateTimeField(source="created_at", read_only=True)
+    remaining_days = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "name", "email", "phone_number", "registration_dateTime", "remaining_days", "status"]
+
+    def get_name(self, obj):
+        return obj.get_full_name() or obj.username or obj.email
+
+    def get_remaining_days(self, obj):
+        if obj.trial_remaining_seconds:
+            return obj.trial_remaining_seconds // 86400  # convert seconds → days
+        return 0
+
+    def get_status(self, obj):
+        if obj.has_purchased_courses:
+            return "purchased"
+        elif obj.is_trial_expired:
+            return "trial_expired"
+        else:
+            return "trial_active"
+  

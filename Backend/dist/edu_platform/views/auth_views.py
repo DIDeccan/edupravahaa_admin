@@ -12,14 +12,14 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
 from edu_platform.permissions.auth_permissions import IsAdmin, IsTeacher, IsStudent
-from edu_platform.models import User, OTP, CourseSubscription,TeacherProfile
+from edu_platform.models import User, OTP, CourseSubscription,TeacherProfile,CourseEnrollment
 from edu_platform.utility.email_services import send_otp_email
 from edu_platform.utility.sms_services import get_sms_service, ConsoleSMSService
 from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer,ListStudentsSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer,ListStudentsSerializer,StudentNotEnrolledSerializer
 )
 import logging
 import phonenumbers
@@ -1110,4 +1110,11 @@ class UserStatusCountView(APIView):
             'deactivated_users': User.objects.filter(is_active=False).count(),
         }
         serializer = UserStatusCountSerializer(data)
-        return Response(serializer.data, status=status.HTTP_200_OK)        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class StudentsNotEnrolledView(generics.ListAPIView):
+    serializer_class = StudentNotEnrolledSerializer
+
+    def get_queryset(self):
+        enrolled_students = CourseEnrollment.objects.values_list("student_id", flat=True)
+        return User.objects.filter(role="student").exclude(id__in=enrolled_students)

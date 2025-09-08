@@ -1,5 +1,5 @@
 from django.urls import path
-from edu_platform.views.payment_views import CreateOrderView, VerifyPaymentView,TransactionReportView
+from edu_platform.views.payment_views import CreateOrderView, VerifyPaymentView,TransactionReportView,PaymentReportView
 
 
 urlpatterns = [
@@ -9,5 +9,6 @@ urlpatterns = [
     # Verifies payment for a subscription and updates subscription status.
     path('verify_payment/', VerifyPaymentView.as_view(), name='verify_payment'),
     path('transactions/report/', TransactionReportView.as_view(), name='transaction-report'),
+    path("payments/report/", PaymentReportView.as_view(), name="payment-report"),
 ]
 

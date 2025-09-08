@@ -107,7 +107,12 @@ class User(AbstractUser):
             return 0
         
         return int(time_remaining.total_seconds())
-
+    @classmethod
+    def students_not_enrolled(cls):
+        """Return all students who are not enrolled in any course."""
+        from .models import CourseEnrollment  # avoid circular import
+        enrolled_students = CourseEnrollment.objects.values_list("student_id", flat=True)
+        return cls.objects.filter(role="student").exclude(id__in=enrolled_students)
 
 class TeacherProfile(models.Model):
     """Stores professional details for teachers."""
@@ -405,3 +410,11 @@ class CourseEnrollment(models.Model):
     def __str__(self):
         """Returns student email, course name, and batch."""
         return f"{self.student.email} - {self.course.name} ({self.batch})"
+
+class Payment(models.Model):
+    subscription = models.ForeignKey(CourseSubscription, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=50)
+    payment_status = models.CharField(max_length=20)
+    transaction_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
