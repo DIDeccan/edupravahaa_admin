@@ -6,5 +6,24 @@
     "teacher":{
         "teacherList":"/api/auth/admin/teachers/",
         "registerTeacher":"/api/auth/register/teacher"
-    }
+    },
+    "courses":{
+        "studentCount":"/api/courses/courses/student-count/"
+    },
+    "payments": {
+    "transactionsReport": "/api/payments/transactions/report/"
+  },
+
+   "users":{
+    "statusCount":"/api/auth/users/status-count/"
+   },
+   
+ "students":{
+    "unenrolled":"/api/auth/students/not-enrolled/"
+ }
+      
+
+
 }
+
+
