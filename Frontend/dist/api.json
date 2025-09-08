@@ -6,5 +6,15 @@
     "teacher":{
         "teacherList":"/api/auth/admin/teachers/",
         "registerTeacher":"/api/auth/register/teacher"
-    }
+    },
+    "student":{
+        "studentList":"/api/auth/admin/students/"
+    },
+    
+  "payment": {
+    "paymentList": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02",
+    "addPayment": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02"
+  
+}
+
 }

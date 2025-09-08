@@ -53,6 +53,7 @@ const AddNewModal = ({ open, handleModal }) => {
       schedule.push({
         type: 'weekdays',
         startDate: formData.weekdaysStartDate,
+        enddate: formData.weekdaysEndDate,
         days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         time: `${formData.weekdaysStart} to ${formData.weekdaysEnd}`
       })
@@ -80,21 +81,48 @@ const AddNewModal = ({ open, handleModal }) => {
     return schedule
   }
 
-  const handleSubmit = async e => {
-    e.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!')
-      return
+      alert("Passwords do not match!");
+      return;
     }
 
-    const schedule = generateSchedule()
-    const payload = { ...formData, schedule,confirm_password: formData.confirmPassword }
+    // Map formData -> course_assignments format
+    const courseAssignments = [
+      {
+        course_id: parseInt(formData.course, 10),
+        batches: formData.batch || [],
+        weekdays_start_date: formData.weekdaysStartDate || "",
+        weekdays_end_date: formData.weekdaysEndDate || "",
+        weekdays_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        weekdays_start: formData.weekdaysStart || "",
+        weekdays_end: formData.weekdaysEnd || "",
+        weekend_start_date: formData.weekendStartDate || "",
+        weekend_end_date: formData.weekendEndDate || "",
+        saturday_start: formData.saturdayStart || "",
+        saturday_end: formData.saturdayEnd || "",
+        sunday_start: formData.sundayStart || "",
+        sunday_end: formData.sundayEnd || ""
+      }
+    ];
 
-    // Dispatch Redux action to register teacher
-    await dispatch(registerTeacher(payload))
 
-    handleModal()
-  }
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+      confirm_password: formData.confirmPassword,
+      course_assignments: courseAssignments,
+    };
+
+    console.log("Final Payload Sent:", payload);
+
+    await dispatch(registerTeacher(payload));
+    handleModal();
+  };
 
   const CloseBtn = <X className='cursor-pointer' size={15} onClick={handleModal} />
 
@@ -141,10 +169,11 @@ const AddNewModal = ({ open, handleModal }) => {
               required
             >
               <option value=''>Select Course</option>
-              <option value='ReactJS'>ReactJS</option>
-              <option value='NodeJS'>NodeJS</option>
-              <option value='Python'>Python</option>
-              <option value='AWS'>AWS</option>
+              <option value='3'>ReactJS</option>
+              <option value='4'>Python</option>
+              <option value='5'>Javascript</option>
+              <option value='6'>NodeJS</option>
+              <option value='7'>AWS</option>
             </Input>
           </FormGroup>
 
@@ -171,9 +200,9 @@ const AddNewModal = ({ open, handleModal }) => {
           </FormGroup>
 
           {/* Weekdays & Weekend Date/Time pickers */}
-  
 
-           {formData.batch.includes('weekdays') && (
+
+          {formData.batch.includes('weekdays') && (
             <>
               <FormGroup>
                 <Label>Weekdays Course Start Date</Label>
@@ -183,6 +212,18 @@ const AddNewModal = ({ open, handleModal }) => {
                   onChange={date => {
                     if (date.length > 0) {
                       setFormData({ ...formData, weekdaysStartDate: formatDate(date[0]) })
+                    }
+                  }}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>Weekdays Course End Date</Label>
+                <Flatpickr
+                  className='form-control'
+                  options={{ dateFormat: 'Y-m-d' }}
+                  onChange={date => {
+                    if (date.length > 0) {
+                      setFormData({ ...formData, weekdaysEndDate: formatDate(date[0]) })
                     }
                   }}
                 />
@@ -214,10 +255,10 @@ const AddNewModal = ({ open, handleModal }) => {
             </>
           )}
 
-              
+
 
           {/* Weekend Date & Time */}
-           {formData.batch.includes('weekend') && (
+          {formData.batch.includes('weekend') && (
             <>
               <FormGroup>
                 <Label>Weekend Course Start Date</Label>
