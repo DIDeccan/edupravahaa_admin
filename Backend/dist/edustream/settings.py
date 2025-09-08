@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     # 'classes',
     # 'payments',
     # 'recordings',
-    'edu_platform'
+    'edu_platform',
+    'django_filters'
 ]
 
 MIDDLEWARE = [

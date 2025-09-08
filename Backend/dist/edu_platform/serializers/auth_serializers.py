@@ -1,12 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from django.db.models import Q
-from edu_platform.models import User, TeacherProfile, OTP, StudentProfile, Course, ClassSchedule
+from edu_platform.models import User, TeacherProfile, OTP, StudentProfile, Course, ClassSchedule,CourseEnrollment
 from edu_platform.serializers.course_serializers import CourseSerializer
+from edu_platform.utility.email_services import send_teacher_credentials
 import re
 from django.utils import timezone
 from datetime import datetime, timedelta
 import logging
+from django.core.mail import send_mail
+from django.conf import settings
+import uuid
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -214,6 +218,7 @@ class RegisterSerializer(serializers.Serializer):
         """Creates a student user and deletes used OTPs."""
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
+        #validated_data['username'] = 'name' 
         
         user = User.objects.create_user(
             **validated_data,
@@ -243,6 +248,7 @@ class RegisterSerializer(serializers.Serializer):
 
 class TeacherCreateSerializer(serializers.ModelSerializer):
     """Handles teacher user creation by admin."""
+    #username=serializers.CharField(write_only=True,required=True)
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, required=True)
     name = serializers.CharField(max_length=150, required=True, allow_blank=False)
@@ -548,6 +554,8 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
                     schedule=schedule
                 )
             
+            send_teacher_credentials(user.email, name, password)
+            
             logger.info(f"Teacher created successfully: {user.id}")
             return user
         except Exception as e:
@@ -555,6 +563,68 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'error': f'Failed to create teacher: {str(e)}'
             })
+
+
+class ListTeachersSerializer(serializers.ModelSerializer):
+    """Serializes teacher data for listing."""
+    name = serializers.CharField(source='user.get_full_name', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone_number', read_only=True)
+    course_assigned = serializers.SerializerMethodField(read_only=True)
+    batches = serializers.SerializerMethodField(read_only=True)
+    status = serializers.BooleanField(source='user.is_active', read_only=True)
+
+    class Meta:
+        model = TeacherProfile
+        fields = ['name', 'email', 'phone', 'course_assigned', 'batches', 'status']
+
+    def get_course_assigned(self, obj):
+        """Fetch assigned courses from ClassSchedule."""
+        teacher_user = getattr(obj, 'user', obj)  # if obj has user, use it; else obj itself
+        schedules = ClassSchedule.objects.filter(teacher=teacher_user)
+        return [schedule.course.name for schedule in schedules]
+
+    def get_batches(self, obj):
+        """Fetch batches from ClassSchedule."""
+        teacher_user = getattr(obj, 'user', obj)
+        schedules = ClassSchedule.objects.filter(teacher=teacher_user)
+        batches = set()
+        for schedule in schedules:
+            batches.update(schedule.batches)
+        return list(batches)
+
+class ListStudentsSerializer(serializers.ModelSerializer):
+    """Serializes student data for admin listing."""
+    name = serializers.CharField(source='get_full_name', read_only=True)
+    email = serializers.EmailField(read_only=True)
+    phone = serializers.CharField(source='phone_number', read_only=True)
+    enrolled_courses = serializers.SerializerMethodField()
+    batches = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    registration_date = serializers.DateTimeField(source='date_joined', format='%Y-%m-%d %H:%M', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'phone', 'enrolled_courses', 'batches', 'registration_date', 'status']
+
+    def get_enrolled_courses(self, obj):
+        """Fetch courses assigned to this student."""
+        enrollments = CourseEnrollment.objects.filter(student=obj)
+        return [enrollment.course.name for enrollment in enrollments]
+
+    def get_batches(self, obj):
+        enrollments = CourseEnrollment.objects.filter(student=obj)
+        batch_set = set()
+        for enrollment in enrollments:
+            if enrollment.batch:  # make sure it exists
+                batch_set.add(enrollment.batch)  # add whole string, not characters
+        return list(batch_set)
+
+
+    def get_status(self, obj):
+        """Return Active/Inactive status."""
+        return "Active" if obj.is_active else "Inactive"
+
 
 
 class AdminCreateSerializer(serializers.ModelSerializer):
@@ -898,4 +968,31 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 class UserStatusCountSerializer(serializers.Serializer):
     active_users = serializers.IntegerField()
     registered_users = serializers.IntegerField()
-    deactivated_users = serializers.IntegerField()        
+    deactivated_users = serializers.IntegerField()
+
+class StudentNotEnrolledSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    registration_dateTime = serializers.DateTimeField(source="created_at", read_only=True)
+    remaining_days = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "name", "email", "phone_number", "registration_dateTime", "remaining_days", "status"]
+
+    def get_name(self, obj):
+        return obj.get_full_name() or obj.username or obj.email
+
+    def get_remaining_days(self, obj):
+        if obj.trial_remaining_seconds:
+            return obj.trial_remaining_seconds // 86400  # convert seconds → days
+        return 0
+
+    def get_status(self, obj):
+        if obj.has_purchased_courses:
+            return "purchased"
+        elif obj.is_trial_expired:
+            return "trial_expired"
+        else:
+            return "trial_active"
+  

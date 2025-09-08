@@ -1,4 +1,4 @@
-from rest_framework import views, status
+from rest_framework import views, status,generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated,IsAdminUser
@@ -7,11 +7,23 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
 from rest_framework import serializers
-from edu_platform.models import Course, CourseSubscription, CourseEnrollment
+from edu_platform.models import Course, CourseSubscription, CourseEnrollment,Payment
 from edu_platform.permissions.auth_permissions import IsStudent
-from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer,TransactionReportSerializer
+from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer,TransactionReportSerializer,PaymentReportSerializer
 import razorpay
 import logging
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
+from edu_platform.filters import PaymentFilter
+
+
+import pandas as pd
+from io import BytesIO
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
 
 # Initialize Razorpay client
 client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -375,3 +387,67 @@ class TransactionReportView(APIView):
                 "data": []
             }
             return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)       
+        
+class PaymentReportView(generics.ListAPIView):
+    queryset = Payment.objects.all().order_by("-created_at")
+    serializer_class = PaymentReportSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_class = PaymentFilter
+    search_fields = ["course__name", "student__username", "payment_status"]
+    ordering_fields = ["created_at", "amount"]
+
+    def get(self, request, *args, **kwargs):
+        export = request.query_params.get("export")
+
+        if export == "excel":
+            return self.export_excel()
+        elif export == "pdf":
+            return self.export_pdf()
+
+        return super().get(request, *args, **kwargs)
+
+    def export_excel(self):
+        qs = self.filter_queryset(self.get_queryset())
+        data = PaymentReportSerializer(qs, many=True).data
+        df = pd.DataFrame(data)
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Payments")
+
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type="application/vnd.ms-excel")
+        response["Content-Disposition"] = "attachment; filename=payments.xlsx"
+        return response
+
+    def export_pdf(self):
+        qs = self.filter_queryset(self.get_queryset())
+        data = PaymentReportSerializer(qs, many=True).data
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Title
+        elements.append(Paragraph("Payments Report", styles["Heading1"]))
+
+        # Table
+        table_data = [list(data[0].keys())] if data else []
+        for row in data:
+            table_data.append(list(row.values()))
+
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=payments.pdf"
+        return response        

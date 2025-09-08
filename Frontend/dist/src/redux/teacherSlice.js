@@ -11,13 +11,13 @@ export const fetchTeachers = createAsyncThunk(
     try {
       const { auth } = getState()
       const token = auth?.token || localStorage.getItem("access");
-    
-      console.log("token",token)
+
+      console.log("token", token)
       console.log("Token in localStorage:", localStorage.getItem("access"))
 
 
       const response = await axios.get(`${API_URL}${apiList.teacher.teacherList}`, {
-        headers: {  Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       console.log("API response:", response.data);
@@ -80,10 +80,23 @@ const teacherSlice = createSlice({
         state.loading = false;
         console.log("New Teacher Added:", action.payload);
 
-        // if backend returns the new teacher object
-        if (action.payload?.data) {
-          state.list.push(action.payload.data);
+        // // if backend returns the new teacher object
+        // if (action.payload?.data) {
+        //   state.list.push(action.payload.data);
+        // }
+
+        let newTeacher = action.payload?.data || action.payload;
+
+        if (newTeacher?.course_assignments) {
+          // Map backend `course_assignments` into UI-friendly fields
+          newTeacher.course_assigned = newTeacher.course_assignments.map(ca => ca.course_name);
+          newTeacher.batches = newTeacher.course_assignments.flatMap(ca => ca.batches);
+        } else {
+          newTeacher.course_assigned = [];
+          newTeacher.batches = [];
         }
+
+        state.list.push(newTeacher);
       })
       .addCase(registerTeacher.rejected, (state, action) => {
         state.loading = false;

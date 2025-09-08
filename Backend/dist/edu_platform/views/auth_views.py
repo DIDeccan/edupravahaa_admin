@@ -12,14 +12,14 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
 from edu_platform.permissions.auth_permissions import IsAdmin, IsTeacher, IsStudent
-from edu_platform.models import User, OTP, CourseSubscription
+from edu_platform.models import User, OTP, CourseSubscription,TeacherProfile,CourseEnrollment
 from edu_platform.utility.email_services import send_otp_email
 from edu_platform.utility.sms_services import get_sms_service, ConsoleSMSService
 from edu_platform.serializers.auth_serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
     TeacherCreateSerializer, ChangePasswordSerializer,
     SendOTPSerializer, VerifyOTPSerializer,
-    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer
+    ForgotPasswordSerializer, AdminCreateSerializer,UserStatusCountSerializer, AssignedCourseSerializer,ListTeachersSerializer,ListStudentsSerializer,StudentNotEnrolledSerializer
 )
 import logging
 import phonenumbers
@@ -675,7 +675,7 @@ class TeacherRegisterView(generics.CreateAPIView):
                 'error': f'Failed to register teacher: {str(e)}',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        
 
 class AdminRegisterView(generics.CreateAPIView):
     """Registers a new admin user by any user."""
@@ -779,7 +779,7 @@ class AdminRegisterView(generics.CreateAPIView):
 
 class ListTeachersView(generics.ListAPIView):
     """Lists all teacher users for admin."""
-    serializer_class = UserSerializer
+    serializer_class = ListTeachersSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     
     @swagger_auto_schema(
@@ -824,12 +824,12 @@ class ListTeachersView(generics.ListAPIView):
     
     def get_queryset(self):
         """Returns all teacher users."""
-        return User.objects.filter(role='teacher')
+        return TeacherProfile.objects.select_related('user').all()
 
 
 class ListStudentsView(generics.ListAPIView):
     """Lists all student users for admin."""
-    serializer_class = UserSerializer
+    serializer_class = ListStudentsSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     
     @swagger_auto_schema(
@@ -1110,4 +1110,11 @@ class UserStatusCountView(APIView):
             'deactivated_users': User.objects.filter(is_active=False).count(),
         }
         serializer = UserStatusCountSerializer(data)
-        return Response(serializer.data, status=status.HTTP_200_OK)        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class StudentsNotEnrolledView(generics.ListAPIView):
+    serializer_class = StudentNotEnrolledSerializer
+
+    def get_queryset(self):
+        enrolled_students = CourseEnrollment.objects.values_list("student_id", flat=True)
+        return User.objects.filter(role="student").exclude(id__in=enrolled_students)

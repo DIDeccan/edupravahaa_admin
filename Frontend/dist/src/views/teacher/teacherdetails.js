@@ -1,5 +1,7 @@
 // ** React Imports
 import { Fragment, useState, forwardRef, useEffect } from 'react'
+import { Badge } from 'reactstrap'
+
 
 // ** Add New Modal Component
 import AddNewModal from './addteacherdetails'
@@ -27,7 +29,7 @@ import {
 const columns = [
   {
     name: 'Full Name',
-    selector: row => row.first_name,
+    selector: row => row.name,
     sortable: true
   },
   {
@@ -36,28 +38,29 @@ const columns = [
     sortable: true
   },
   {
-    name: 'Post',
-    selector: row => row.role,
+    name: 'Phone',
+    selector: row => row.phone,
     sortable: true
   },
   {
-    name: 'Age',
-    selector: row => row.age,
+    name: 'Courses',
+    selector: row => row.course_assigned.join(","),
     sortable: true
   },
   {
-    name: 'Salary',
-    selector: row => row.salary,
+    name: 'Batch (Weekdays/Weekend)',
+    selector: row => row.batches.join(","),
     sortable: true
   },
-  {
-    name: 'Start Date',
-    selector: row => row.start_date,
-    sortable: true
-  },
+  
   {
     name: 'Status',
-    selector: row => row.status,
+    // selector: row =>(row.status ? "Active" : "Inactive"),
+    cell: row => (
+      <Badge color={row.status ? 'light-success' : 'light-danger'}>
+        {row.status ? 'Active' : 'Inactive'}
+      </Badge>
+    ),
     sortable: true
   }
 ]
@@ -202,24 +205,26 @@ const TeacherDetails = () => {
             />
           </Col>
         </Row>
+        
 
         {loading ? (
           <p className='p-2'>Loading...</p>
         ) : error ? (
           <p className='p-2 text-danger'>Error: {error}</p>
         ) : (
+          
           <DataTable
             noHeader
             pagination
             selectableRows
             columns={columns}
-            paginationPerPage={7}
+            paginationPerPage={8}
             className='react-dataTable'
             sortIcon={<ChevronDown size={10} />}
             paginationDefaultPage={currentPage + 1}
             paginationComponent={CustomPagination}
             data={searchValue.length ? filteredData : list}
-            selectableRowsComponent={BootstrapCheckbox}
+            // selectableRowsComponent={BootstrapCheckbox}
           />
         )}
       </Card>

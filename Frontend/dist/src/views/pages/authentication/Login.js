@@ -65,7 +65,7 @@ const ToastContent = ({ t, name, role }) => {
 
 const defaultValues = {
   password: '1234',
-  loginEmail: 'ganga@gmail.com'
+  loginEmail: 'gayithrichalapathi272@gmail.com'
 }
 
 const Login = () => {
