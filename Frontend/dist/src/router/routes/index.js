@@ -6,6 +6,8 @@ import PagesRoutes from './Pages'
 import DashboardRoutes from './Dashboards'
 import AuthenticationRoutes from './Authentication'
 import TeacherRoutes from './Teacher'
+import StudentRoutes from './Student'
+import PaymentRoutes from './Payment'
 
 // ** Layouts
 import BlankLayout from '@layouts/BlankLayout'
@@ -19,6 +21,7 @@ import PrivateRoute from '@components/routes/PrivateRoute'
 
 // ** Utils
 import { isObjEmpty } from '@utils'
+
 
 const getLayout = {
   blank: <BlankLayout />,
@@ -37,7 +40,9 @@ const Routes = [
   ...AuthenticationRoutes,
   ...DashboardRoutes,
   ...PagesRoutes,
-  ...TeacherRoutes
+  ...TeacherRoutes,
+  ...StudentRoutes,
+  ...PaymentRoutes
 ]
 
 const getRouteMeta = route => {
