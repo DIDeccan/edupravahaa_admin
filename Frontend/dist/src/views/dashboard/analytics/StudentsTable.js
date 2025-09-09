@@ -1,0 +1,77 @@
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardSubtitle,
+  CardBody,
+  Table,
+  Spinner,
+} from "reactstrap";
+import { fetchUnenrolledStudents } from "../../../redux/analyticsSlice";
+
+const UnenrolledStudentsTable = () => {
+  const dispatch = useDispatch();
+
+  const {
+    unenrolledStudents = [],
+    loadingUnenrolled,
+    errorUnenrolled,
+  } = useSelector((state) => state.dashboard || {});
+
+  useEffect(() => {
+    dispatch(fetchUnenrolledStudents());
+  }, [dispatch]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardSubtitle className="text-muted mb-25">Analytics</CardSubtitle>
+        <CardTitle tag="h4">
+          Students Registered but Not Enrolled
+        </CardTitle>
+      </CardHeader>
+      <CardBody>
+        {loadingUnenrolled ? (
+          <div className="text-center">
+            <Spinner color="primary" />
+          </div>
+        ) : errorUnenrolled ? (
+          <p className="text-danger">{errorUnenrolled}</p>
+        ) : unenrolledStudents.length === 0 ? (
+          <p>No unenrolled students found.</p>
+        ) : (
+          <Table responsive hover>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone Number</th>
+                <th>Registration Date</th>
+                <th>Remaining Days</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {unenrolledStudents.map((student, idx) => (
+                <tr key={idx}>
+                  <td>{student.name}</td>
+                  <td>{student.email}</td>
+                  <td>{student.phone}</td>
+                  <td>
+                    {new Date(student.registration_date).toLocaleDateString()}
+                  </td>
+                  <td>{student.remaining_days ?? "N/A"}</td>
+                  <td>{student.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </CardBody>
+    </Card>
+  );
+};
+
+export default UnenrolledStudentsTable;
