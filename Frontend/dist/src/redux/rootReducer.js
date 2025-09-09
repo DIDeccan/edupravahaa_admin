@@ -17,8 +17,6 @@ const rootReducer = {
   students,
   payments
 
-  
-  
 } 
 
 export default rootReducer
