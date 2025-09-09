@@ -139,4 +139,18 @@ class CourseStudentCountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['name', 'student_count']        
+        fields = ['name', 'student_count']   
+
+
+
+
+class PaymentRecordSerializer(serializers.ModelSerializer):
+    course = serializers.CharField(source='course.name')
+    start_date_time = serializers.DateTimeField(source='payment_completed_at')
+    end_date_time = serializers.DateTimeField(source='payment_completed_at')
+    status = serializers.CharField(source='payment_status')
+
+    class Meta:
+        model = CourseSubscription
+        fields = ['start_date_time', 'end_date_time', 'course', 'status']
+     

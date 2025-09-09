@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from edu_platform.models import Course, CourseSubscription, ClassSchedule,Payment
+from edu_platform.models import Course, CourseSubscription, ClassSchedule
 
 def validate_batch_for_course(value, course):
     """Shared utility to validate batch availability for a course."""
@@ -101,20 +101,3 @@ class TransactionReportSerializer(serializers.ModelSerializer):
             return 'Success'
         return 'Failure'    
     
-
-# payment_serializer.py
-
-class PaymentReportSerializer(serializers.ModelSerializer):
-    course = serializers.CharField(source="course.name", read_only=True)
-    student = serializers.CharField(source="student.username", read_only=True)
-
-    class Meta:
-        model = Payment
-        fields = [
-            "id",
-            "student",
-            "course",
-            "amount",
-            "payment_status",
-            "created_at",
-        ]
