@@ -1,19 +1,35 @@
 {
-    "auth":{
-        "login":"/api/auth/login/",
-        "getProfile":"/api/auth/profile/"
+    "auth": {
+        "login": "/api/auth/login/",
+        "getProfile": "/api/auth/profile/"
     },
-    "teacher":{
-        "teacherList":"/api/auth/admin/teachers/",
-        "registerTeacher":"/api/auth/register/teacher"
+    "teacher": {
+        "teacherList": "/api/auth/admin/teachers/",
+        "registerTeacher": "/api/auth/register/teacher"
     },
-    "student":{
+     "student":{
         "studentList":"/api/auth/admin/students/"
     },
-    
     "payment": {
-        "paymentList": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02",
-        "addPayment": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02"  
-    }
+        "paymentList": "/api/courses/payments/all/"
+    },
+    "courses": {
+        "coursesList": "/api/courses"
+    },
 
+
+
+
+    "barchart": {
+        "studentCount": "/api/courses/courses/student-count/"
+    },
+    "payments": {
+        "transactionsReport": "/api/payments/transactions/report/"
+    },
+    "users": {
+        "statusCount": "/api/auth/users/status-count/"
+    },
+    "students": {
+        "unenrolled": "/api/auth/students/not-enrolled/"
+    }
 }

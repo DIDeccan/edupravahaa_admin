@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import Flatpickr from 'react-flatpickr'
 import { User, Mail, Calendar, Lock, Phone, X } from 'react-feather'
 import {
@@ -14,7 +14,10 @@ import {
   Label
 } from 'reactstrap'
 import { registerTeacher } from '../../redux/teacherSlice'
+import { fetchCourses } from "../../redux/courseSlice";
 import '@styles/react/libs/flatpickr/flatpickr.scss'
+import Swal from "sweetalert2";
+
 
 const AddNewModal = ({ open, handleModal }) => {
   const dispatch = useDispatch()
@@ -35,6 +38,13 @@ const AddNewModal = ({ open, handleModal }) => {
     password: '',
     confirmPassword: ''
   })
+
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const { list: courses, loading: courseLoading } = useSelector((state) => state.courses);
+  // Fetch course on mount
+  useEffect(() => {
+    dispatch(fetchCourses())
+  }, [dispatch]);
 
   const handleChange = e => {
     const { name, value } = e.target
@@ -59,10 +69,10 @@ const AddNewModal = ({ open, handleModal }) => {
       })
     }
 
-    if (formData.batch.includes('weekend')) {
+    if (formData.batch.includes('weekends')) {
       if (formData.saturdayStart && formData.saturdayEnd) {
         schedule.push({
-          type: 'weekend',
+          type: 'weekends',
           startDate: formData.weekendStartDate,
           day: 'Saturday',
           time: `${formData.saturdayStart} to ${formData.saturdayEnd}`
@@ -70,7 +80,7 @@ const AddNewModal = ({ open, handleModal }) => {
       }
       if (formData.sundayStart && formData.sundayEnd) {
         schedule.push({
-          type: 'weekend',
+          type: 'weekends',
           startDate: formData.weekendStartDate,
           day: 'Sunday',
           time: `${formData.sundayStart} to ${formData.sundayEnd}`
@@ -81,48 +91,122 @@ const AddNewModal = ({ open, handleModal }) => {
     return schedule
   }
 
+  const [loading, setLoading] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match!");
-      return;
-    }
+    if (loading) return; // prevent double submit
+    setLoading(true);
 
-    // Map formData -> course_assignments format
-    const courseAssignments = [
-      {
-        course_id: parseInt(formData.course, 10),
-        batches: formData.batch || [],
-        weekdays_start_date: formData.weekdaysStartDate || "",
-        weekdays_end_date: formData.weekdaysEndDate || "",
-        weekdays_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-        weekdays_start: formData.weekdaysStart || "",
-        weekdays_end: formData.weekdaysEnd || "",
-        weekend_start_date: formData.weekendStartDate || "",
-        weekend_end_date: formData.weekendEndDate || "",
-        saturday_start: formData.saturdayStart || "",
-        saturday_end: formData.saturdayEnd || "",
-        sunday_start: formData.sundayStart || "",
-        sunday_end: formData.sundayEnd || ""
+    try {
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+      if (!passwordRegex.test(formData.password)) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid Password",
+          text: "Password must contain at least 8 characters, including one uppercase, lowercase, number, and special character.",
+        });
+        document.getElementById("password")?.focus();
+        return;
       }
-    ];
 
+      if (formData.password !== formData.confirmPassword) {
+        Swal.fire({
+          icon: "error",
+          title: "Oops...",
+          text: "Passwords do not match!",
+        });
+        document.getElementById("confirmPassword")?.focus();
+        return;
+      }
 
-    const payload = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      password: formData.password,
-      confirm_password: formData.confirmPassword,
-      course_assignments: courseAssignments,
-    };
+      const courseAssignments = [
+        {
+          // course_id: parseInt(formData.course, 10),
+          course_id: formData.course,
+          batches: formData.batch || [],
+          weekdays_start_date: formData.weekdaysStartDate || "",
+          weekdays_end_date: formData.weekdaysEndDate || "",
+          weekdays_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          weekdays_start: formData.weekdaysStart || "",
+          weekdays_end: formData.weekdaysEnd || "",
+          weekend_start_date: formData.weekendStartDate || "",
+          weekend_end_date: formData.weekendEndDate || "",
+          saturday_start: formData.saturdayStart || "",
+          saturday_end: formData.saturdayEnd || "",
+          sunday_start: formData.sundayStart || "",
+          sunday_end: formData.sundayEnd || "",
+        },
+      ];
 
-    console.log("Final Payload Sent:", payload);
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        confirm_password: formData.confirmPassword,
+        course_assignments: courseAssignments,
+      };
 
-    await dispatch(registerTeacher(payload));
-    handleModal();
+      const resultAction = await dispatch(registerTeacher(payload));
+
+      if (registerTeacher.fulfilled.match(resultAction)) {
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Teacher registered successfully!",
+        });
+        setFormData({
+          name: '',
+          course: '',
+          batch: [],
+          weekdaysStartDate: '',
+          weekendStartDate: '',
+          weekdaysStart: '',
+          weekdaysEnd: '',
+          saturdayStart: '',
+          saturdayEnd: '',
+          sundayStart: '',
+          sundayEnd: '',
+          email: '',
+          phone: '',
+          password: '',
+          confirmPassword: ''
+        });
+        handleModal(); // close modal
+      } else {
+        const data = resultAction.payload;
+        let errorMessage = "";
+
+        if (data?.errors) {
+          if (data.errors.email) errorMessage += data.errors.email + "\n";
+          if (data.errors.phone) errorMessage += data.errors.phone + "\n";
+        } else if (data?.error) {
+          errorMessage = data.error;
+        } else {
+          errorMessage = "Something went wrong!";
+        }
+
+        Swal.fire({
+          icon: "error",
+          title: "Registration Failed",
+          text: errorMessage.trim(),
+        });
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message || "Something went wrong!",
+      });
+    } finally {
+      setLoading(false); // always reset loading
+    }
   };
+
 
   const CloseBtn = <X className='cursor-pointer' size={15} onClick={handleModal} />
 
@@ -160,20 +244,21 @@ const AddNewModal = ({ open, handleModal }) => {
           {/* Course */}
           <FormGroup>
             <Label for='course'>Course</Label>
-            <Input
-              type='select'
-              id='course'
-              name='course'
-              value={formData.course}
-              onChange={handleChange}
-              required
-            >
-              <option value=''>Select Course</option>
-              <option value='3'>ReactJS</option>
-              <option value='4'>Python</option>
-              <option value='5'>Javascript</option>
-              <option value='6'>NodeJS</option>
-              <option value='7'>AWS</option>
+            <Input type="select" value={formData.course} 
+            onChange={(e) =>
+              setFormData({ ...formData, course: parseInt(e.target.value, 10) })
+            }
+             required>
+              <option value="" disabled>Select course</option>
+              {courseLoading ? (
+                <option>Loading...</option>
+              ) : (
+                courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name}
+                  </option>
+                ))
+              )}
             </Input>
           </FormGroup>
 
@@ -192,7 +277,7 @@ const AddNewModal = ({ open, handleModal }) => {
               required
             >
               <option value='weekdays'>Weekdays</option>
-              <option value='weekend'>Weekend</option>
+              <option value='weekends'>Weekends</option>
             </Input>
             <small className="text-muted">
               Hold Ctrl (Windows) or Command (Mac) to select multiple batch types
@@ -200,7 +285,6 @@ const AddNewModal = ({ open, handleModal }) => {
           </FormGroup>
 
           {/* Weekdays & Weekend Date/Time pickers */}
-
 
           {formData.batch.includes('weekdays') && (
             <>
@@ -255,19 +339,30 @@ const AddNewModal = ({ open, handleModal }) => {
             </>
           )}
 
-
-
           {/* Weekend Date & Time */}
-          {formData.batch.includes('weekend') && (
+          {formData.batch.includes('weekends') && (
             <>
               <FormGroup>
-                <Label>Weekend Course Start Date</Label>
+                <Label>Weekends Course Start Date</Label>
                 <Flatpickr
                   className='form-control'
                   options={{ dateFormat: 'Y-m-d' }}
                   onChange={date => {
                     if (date.length > 0) {
                       setFormData({ ...formData, weekendStartDate: formatDate(date[0]) })
+                    }
+                  }}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Weekends Course End Date</Label>
+                <Flatpickr
+                  className="form-control"
+                  options={{ dateFormat: "Y-m-d" }}
+                  onChange={date => {
+                    if (date.length > 0) {
+                      setFormData({ ...formData, weekendEndDate: formatDate(date[0]) });
                     }
                   }}
                 />
@@ -401,8 +496,10 @@ const AddNewModal = ({ open, handleModal }) => {
             </InputGroup>
           </FormGroup>
 
-          <Button color='primary' type='submit'>
-            Submit
+          {/* <Button color='primary' type='submit'> */}
+          <Button color='primary' disabled={loading}>
+            {loading ? "Adding..." : "Submit"}
+
           </Button>
         </form>
       </ModalBody>

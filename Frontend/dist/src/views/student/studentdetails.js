@@ -23,7 +23,6 @@ import {
   Row,
   Col
 } from 'reactstrap'
-// import { batch } from 'react-redux'
 
 // ** Sample Table Columns
 const columns = [
@@ -44,34 +43,33 @@ const columns = [
   },
   {
     name: 'Enrolled Course(s) ',
-    selector: row => 
-      row.enrolled_courses .join(", "),
+    selector: row =>
+      row.enrolled_courses.join(", "),
     sortable: true
   },
   {
     name: 'Batch (Weekdays/Weekend) ',
-    selector: row => 
-      // row.batches.join(", "),
-    Array.isArray(row.batches)
-      ? row.batches.map(b => b.charAt(0).toUpperCase() + b.slice(1)).join(", ")
-      : row.batches
-        ? row.batches.charAt(0).toUpperCase() + row.batches.slice(1)
-        : "",
+    selector: row =>
+      Array.isArray(row.batches)
+        ? row.batches.map(b => b.charAt(0).toUpperCase() + b.slice(1)).join(", ")
+        : row.batches
+          ? row.batches.charAt(0).toUpperCase() + row.batches.slice(1)
+          : "",
     sortable: true
   },
   {
-    name: 'Registration Date ',
-    selector: row => row.registration_date ,
+    name: 'Registration Date & ',
+    selector: row => row.registration_date,
     sortable: true
   },
   {
     name: 'Status',
     // selector: row => row.status,
     cell: row => (
-          <Badge color={row.status ? 'light-success' : 'light-danger'}>
-            {row.status ? 'Active' : 'Inactive'}
-          </Badge>
-        ),
+      <Badge color={row.status ? 'light-success' : 'light-danger'}>
+        {row.status ? 'Active' : 'Inactive'}
+      </Badge>
+    ),
     sortable: true
   }
 ]
@@ -94,10 +92,11 @@ const DataTableWithButtons = () => {
 
   // Fetch students on component load
   useEffect(() => {
-    dispatch(fetchStudents()).then((res)=>{;
-    console.log("Fetched students:", res.payload);
-  });
-}, [dispatch]);
+    dispatch(fetchStudents()).then((res) => {
+      ;
+      console.log("Fetched students:", res.payload);
+    });
+  }, [dispatch]);
 
   // Filtering logic
   const handleFilter = (e) => {
@@ -140,15 +139,56 @@ const DataTableWithButtons = () => {
     />
   );
 
+  // ** CSV Export functions
+  const convertArrayOfObjectsToCSV = array => {
+    if (!array || !array.length) return null
+    const columnDelimiter = ','
+    const lineDelimiter = '\n'
+    const keys = Object.keys(array[0])
+    let result = ''
+    result += keys.join(columnDelimiter)
+    result += lineDelimiter
+    array.forEach(item => {
+      let ctr = 0
+      keys.forEach(key => {
+        if (ctr > 0) result += columnDelimiter
+        result += item[key]
+        ctr++
+      })
+      result += lineDelimiter
+    })
+    return result
+  }
+
+  const downloadCSV = array => {
+    const link = document.createElement('a')
+    let csv = convertArrayOfObjectsToCSV(array)
+    if (!csv) return
+    const filename = 'students.csv'
+    if (!csv.match(/^data:text\/csv/i)) {
+      csv = `data:text/csv;charset=utf-8,${csv}`
+    }
+    link.setAttribute('href', encodeURI(csv))
+    link.setAttribute('download', filename)
+    link.click()
+  }
+
+
   return (
     <Fragment>
       <Card>
         <CardHeader>
           <CardTitle tag="h4">Student Details</CardTitle>
+          <div className='d-flex mt-md-0 mt-1'>
+            <Button
+              color="success" className="ml-1" onClick={() => downloadCSV(searchValue.length ? filteredData :data)}>
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <Row className='justify-content-end mx-0'>
           <Col md='3' sm='12' className='d-flex align-items-center justify-content-end mt-1'>
-            <Label for='search-input' className='mr-1'>Search</Label>
+            <Label for='search-input' className='mr-1'></Label>
             <Input
               id='search-input'
               bsSize='sm'
@@ -177,6 +217,8 @@ const DataTableWithButtons = () => {
             paginationDefaultPage={currentPage + 1}
             paginationComponent={CustomPagination}
             data={searchValue.length ? filteredData : data || []}
+            selectableRowsComponent={BootstrapCheckbox}
+
           />
         )}
       </Card>
