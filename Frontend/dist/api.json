@@ -7,8 +7,8 @@
         "teacherList":"/api/auth/admin/teachers/",
         "registerTeacher":"/api/auth/register/teacher"
     },
-    "student":{
-        "studentList":"/api/auth/admin/students/"
+    "barchart":{
+        "studentCount":"/api/courses/courses/student-count/"
     },
     
     "payment": {
@@ -17,6 +17,19 @@
     "courses":{
         "coursesList":"/api/courses"
 
-    }
+    },
+    "payments": {
+    "transactionsReport": "/api/payments/transactions/report/"
+  },
 
+   "users":{
+    "statusCount":"/api/auth/users/status-count/"
+   },
+   
+ "students":{
+    "unenrolled":"/api/auth/students/not-enrolled/"
+ }
+    
 }
+
+

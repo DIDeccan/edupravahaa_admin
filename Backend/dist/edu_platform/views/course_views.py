@@ -7,10 +7,8 @@ from drf_yasg import openapi
 from django.db.models import Q,Count
 from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription, ClassSchedule
-from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer, PaymentRecordSerializer
+from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer
 from edu_platform.permissions.auth_permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
-from django_filters.rest_framework import DjangoFilterBackend
-from django_filters import rest_framework as filters
 import logging
 
 logger = logging.getLogger(__name__)
@@ -436,21 +434,6 @@ class CourseStudentCountView(APIView):
         # Serialize the data
         serializer = CourseStudentCountSerializer(courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)   
+    
+      
 
-
-class PaymentFilter(filters.FilterSet):
-    start_date = filters.DateTimeFilter(field_name='payment_completed_at', lookup_expr='gte')
-    end_date = filters.DateTimeFilter(field_name='payment_completed_at', lookup_expr='lte')
-    course = filters.CharFilter(field_name='course__name', lookup_expr='icontains')
-    status = filters.CharFilter(field_name='payment_status', lookup_expr='iexact')
-
-    class Meta:
-        model = CourseSubscription
-        fields = ['start_date', 'end_date', 'course', 'status']
-
-
-class AllPaymentRecordsAPIView(generics.ListAPIView):
-    queryset = CourseSubscription.objects.all().order_by('-payment_completed_at')
-    serializer_class = PaymentRecordSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = PaymentFilter

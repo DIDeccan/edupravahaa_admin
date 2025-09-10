@@ -410,3 +410,11 @@ class CourseEnrollment(models.Model):
     def __str__(self):
         """Returns student email, course name, and batch."""
         return f"{self.student.email} - {self.course.name} ({self.batch})"
+
+class Payment(models.Model):
+    subscription = models.ForeignKey(CourseSubscription, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=50)
+    payment_status = models.CharField(max_length=20)
+    transaction_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
