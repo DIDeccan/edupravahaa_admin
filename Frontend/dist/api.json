@@ -12,8 +12,11 @@
     },
     
     "payment": {
-        "paymentList": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02",
-        "addPayment": "https://mocki.io/v1/9c05af4d-8b61-4cf5-9f8c-b3f51e6b2d02"  
+        "paymentList": "/api/courses/payments/all/"
+    },
+    "courses":{
+        "coursesList":"/api/courses"
+
     }
 
 }
