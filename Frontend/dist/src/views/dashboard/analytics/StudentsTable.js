@@ -15,7 +15,7 @@ const UnenrolledStudentsTable = () => {
   const dispatch = useDispatch();
 
   const {
-    unenrolledStudents = [],
+    unenrolledStudents,
     loadingUnenrolled,
     errorUnenrolled,
   } = useSelector((state) => state.dashboard || {});
@@ -23,6 +23,13 @@ const UnenrolledStudentsTable = () => {
   useEffect(() => {
     dispatch(fetchUnenrolledStudents());
   }, [dispatch]);
+
+  // Debug: Check what the data looks like
+  console.log("unenrolledStudents:", unenrolledStudents);
+
+  const studentsArray = Array.isArray(unenrolledStudents)
+    ? unenrolledStudents
+    : [];
 
   return (
     <Card>
@@ -39,7 +46,7 @@ const UnenrolledStudentsTable = () => {
           </div>
         ) : errorUnenrolled ? (
           <p className="text-danger">{errorUnenrolled}</p>
-        ) : unenrolledStudents.length === 0 ? (
+        ) : studentsArray.length === 0 ? (
           <p>No unenrolled students found.</p>
         ) : (
           <Table responsive hover>
@@ -54,7 +61,7 @@ const UnenrolledStudentsTable = () => {
               </tr>
             </thead>
             <tbody>
-              {unenrolledStudents.map((student, idx) => (
+              {studentsArray.map((student, idx) => (
                 <tr key={idx}>
                   <td>{student.name}</td>
                   <td>{student.email}</td>
