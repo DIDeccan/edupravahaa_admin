@@ -145,12 +145,25 @@ class CourseStudentCountSerializer(serializers.ModelSerializer):
 
 
 class PaymentRecordSerializer(serializers.ModelSerializer):
-    course = serializers.CharField(source='course.name')
+    name=serializers.CharField(source='student.username',read_only=True)
+    email=serializers.CharField(source='student.email',read_only=True)
+    phone_number=serializers.CharField(source='student.phone_number',read_only=True)
+    course = serializers.CharField(source='course.name',read_only=True)
+    batch=serializers.SerializerMethodField()
+    registration_dateTime = serializers.DateTimeField(source='purchased_at')
+    payment_method = serializers.CharField()
+    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
     start_date_time = serializers.DateTimeField(source='payment_completed_at')
     end_date_time = serializers.DateTimeField(source='payment_completed_at')
     status = serializers.CharField(source='payment_status')
-
+    
     class Meta:
         model = CourseSubscription
-        fields = ['start_date_time', 'end_date_time', 'course', 'status']
-     
+        fields = ['name','email','phone_number','course','batch','registration_dateTime','payment_method','amount_paid','start_date_time', 'end_date_time', 'status']
+
+    def get_batch(self, obj):
+        """Fetch batch from related CourseEnrollment."""
+        enrollment = obj.enrollments.first()  # one-to-many relation
+        if enrollment and enrollment.batch:
+            return enrollment.batch
+        return None
