@@ -6,6 +6,9 @@ import dashboard from'./DashboardSlice'
 import teachers from './teacherSlice'
 import students from './studentSlice'
 import payments from './paymentSlice'
+import courses from './courseSlice'
+
+
 
 
 const rootReducer = {
@@ -15,7 +18,8 @@ const rootReducer = {
   dashboard,
   teachers,
   students,
-  payments
+  payments,
+  courses
 
 } 
 
