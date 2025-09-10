@@ -2,7 +2,6 @@
 import { Fragment, useState, forwardRef, useEffect } from 'react'
 import { Badge } from 'reactstrap'
 
-
 // ** Add New Modal Component
 import AddNewModal from './addteacherdetails'
 
@@ -55,7 +54,6 @@ const columns = [
   
   {
     name: 'Status',
-    // selector: row =>(row.status ? "Active" : "Inactive"),
     cell: row => (
       <Badge color={row.status ? 'light-success' : 'light-danger'}>
         {row.status ? 'Active' : 'Inactive'}
@@ -75,10 +73,7 @@ const BootstrapCheckbox = forwardRef(({ onClick, ...rest }, ref) => (
 
 const TeacherDetails = () => {
   const dispatch = useDispatch();
-
   const { list, loading, error } = useSelector((state) => state.teachers);
-
-
 
   // ** States
   const [modal, setModal] = useState(false)
@@ -88,8 +83,6 @@ const TeacherDetails = () => {
 
   const API_URL = import.meta.env.VITE_API_BASE_URL // API base URL
   const token = localStorage.getItem('token') // get token dynamically
-
-
 
   // ** Fetch teachers on load
   useEffect(() => {
@@ -184,8 +177,8 @@ const TeacherDetails = () => {
           <div className='d-flex mt-md-0 mt-1'>
             <Button color='primary' onClick={handleModal}>
               <span className='align-middle ml-50'>Add Instructor</span>
-            </Button>
-            <Button color='success' className='ml-1' onClick={() => downloadCSV(searchValue.length ? filteredData : list)}>
+            </Button >
+            <Button color='success' className='ms-1' onClick={() => downloadCSV(searchValue.length ? filteredData : list)}>
               Export CSV
             </Button>
           </div>
@@ -193,7 +186,7 @@ const TeacherDetails = () => {
 
         <Row className='justify-content-end mx-0'>
           <Col md='3' sm='12' className='d-flex align-items-center justify-content-end mt-1'>
-            <Label for='search-input' className='mr-1'>Search</Label>
+            <Label for='search-input' className='mr-1'></Label>
             <Input
               id='search-input'
               bsSize='sm'
@@ -205,8 +198,7 @@ const TeacherDetails = () => {
             />
           </Col>
         </Row>
-        
-
+      
         {loading ? (
           <p className='p-2'>Loading...</p>
         ) : error ? (
@@ -218,13 +210,13 @@ const TeacherDetails = () => {
             pagination
             selectableRows
             columns={columns}
-            paginationPerPage={8}
+            paginationPerPage={7}
             className='react-dataTable'
             sortIcon={<ChevronDown size={10} />}
             paginationDefaultPage={currentPage + 1}
             paginationComponent={CustomPagination}
             data={searchValue.length ? filteredData : list}
-            // selectableRowsComponent={BootstrapCheckbox}
+            selectableRowsComponent={BootstrapCheckbox}
           />
         )}
       </Card>
