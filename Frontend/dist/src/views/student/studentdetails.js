@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchStudents } from "../../redux/studentSlice";
 import { Badge } from 'reactstrap'
 
-
 // ** Third Party Components
 import ReactPaginate from 'react-paginate'
 import DataTable from 'react-data-table-component'
@@ -73,7 +72,6 @@ const columns = [
     sortable: true
   }
 ]
-
 
 // ** Bootstrap Checkbox Component
 const BootstrapCheckbox = forwardRef(({ onClick, ...rest }, ref) => (
@@ -173,7 +171,6 @@ const DataTableWithButtons = () => {
     link.click()
   }
 
-
   return (
     <Fragment>
       <Card>
@@ -227,10 +224,3 @@ const DataTableWithButtons = () => {
 };
 
 export default DataTableWithButtons;
-
-
-
-
-
-
-
