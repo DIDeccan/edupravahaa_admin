@@ -596,6 +596,7 @@ class TeacherRegisterView(generics.CreateAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(type=openapi.TYPE_OBJECT)
                     }
                 )
@@ -660,6 +661,7 @@ class TeacherRegisterView(generics.CreateAPIView):
             logger.info(f"Teacher created successfully: {user.id}")
             return Response({
                 'message': 'Teacher created successfully.',
+                'message_type': 'success',
                 'data': UserSerializer(user, context={'request': request}).data
             }, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
@@ -790,6 +792,7 @@ class ListTeachersView(generics.ListAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT))
                     }
                 )
@@ -813,6 +816,7 @@ class ListTeachersView(generics.ListAPIView):
             serializer = self.get_serializer(queryset, many=True)
             return Response({
                 'message': 'Teachers retrieved successfully.',
+                'message_type': 'success',
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
@@ -840,6 +844,7 @@ class ListStudentsView(generics.ListAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT))
                     }
                 )
@@ -863,6 +868,7 @@ class ListStudentsView(generics.ListAPIView):
             serializer = self.get_serializer(queryset, many=True)
             return Response({
                 'message': 'Students retrieved successfully.',
+                'message_type': 'success',
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
@@ -1104,17 +1110,38 @@ class UserStatusCountView(APIView):
     
     def get(self, request):
         User = get_user_model()
-        data = {
-            'active_users': User.objects.filter(is_active=True).count(),
-            'registered_users': User.objects.count(),
-            'deactivated_users': User.objects.filter(is_active=False).count(),
-        }
+        try:
+            data = {
+                'active_users': User.objects.filter(is_active=True).count(),
+                'registered_users': User.objects.count(),
+                'deactivated_users': User.objects.filter(is_active=False).count(),
+            }
+            serializer = UserStatusCountSerializer(data)
+            return Response({
+                "message": 'User status counts retrieved successfully.',
+                "message_type":"success",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"User status count error: {str(e)}")
+            return Response({
+                "message": 'An error occurred while retrieving user status counts.',
+                "message_type":"error"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         serializer = UserStatusCountSerializer(data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class StudentsNotEnrolledView(generics.ListAPIView):
     serializer_class = StudentNotEnrolledSerializer
 
-    def get_queryset(self):
-        enrolled_students = CourseEnrollment.objects.values_list("student_id", flat=True)
-        return User.objects.filter(role="student").exclude(id__in=enrolled_students)
+    def get(self, request):
+        completed_students = CourseSubscription.objects.filter(
+            payment_status="completed"
+        ).values_list("student_id", flat=True)
+        students = User.objects.filter(role="student").exclude(id__in=completed_students)
+        serializer = StudentNotEnrolledSerializer(students, many=True)
+        return Response({"message": "Students retrieved successfully",
+            "message_type": "success",
+            "data": serializer.data
+            }, status=status.HTTP_200_OK)

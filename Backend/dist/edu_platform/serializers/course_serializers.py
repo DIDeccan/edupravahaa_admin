@@ -163,7 +163,7 @@ class PaymentRecordSerializer(serializers.ModelSerializer):
 
     def get_batch(self, obj):
         """Fetch batch from related CourseEnrollment."""
-        enrollment = obj.enrollments.first()  # one-to-many relation
+        enrollment = obj.enrollments.first()  # because of related_name is enrollments
         if enrollment and enrollment.batch:
             return enrollment.batch
         return None

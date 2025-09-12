@@ -425,18 +425,31 @@ class MyCoursesView(generics.ListAPIView):
 
 class CourseStudentCountView(APIView):
     def get(self, request):
+        try:
         # Query to get courses with student counts
-        courses = Course.objects.filter(
-            subscriptions__payment_status='completed',
-            subscriptions__is_active=True
-        ).annotate(
-            student_count=Count('subscriptions__student')
-        ).order_by('name')
+            courses = Course.objects.filter(
+                subscriptions__payment_status='completed',
+                subscriptions__is_active=True
+            ).annotate(
+                student_count=Count('subscriptions__student')
+            ).order_by('name')
 
-        # Serialize the data
-        serializer = CourseStudentCountSerializer(courses, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)   
+            if not courses.exists():
+                return Response({"message": 'No courses found with enrolled students.','message_type':'error'}, status=status.HTTP_404_NOT_FOUND)
 
+            # Serialize the data
+            serializer = CourseStudentCountSerializer(courses, many=True)
+            return Response({
+                "message": 'Course student counts retrieved successfully.',
+                "message_type":"success",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "message": 'An error occurred while retrieving course student counts.',
+                "message_type":"error",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaymentFilter(filters.FilterSet):
     start_date = filters.DateTimeFilter(field_name='payment_completed_at', lookup_expr='gte')
@@ -454,3 +467,21 @@ class AllPaymentRecordsAPIView(generics.ListAPIView):
     serializer_class = PaymentRecordSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = PaymentFilter
+
+    def list(self, request, *args, **kwargs):
+        try:
+            response = super().list(request, *args, **kwargs)
+            return Response({
+                "message": "Payment records retrieved successfully.",
+                "message_type": "success",
+                "count": response.data["count"],
+                "next": response.data["next"],
+                "previous": response.data["previous"],
+                "results": response.data["results"],
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "message": "Failed to retrieve payment records.",
+                "message_type": "error",
+                "error": str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
