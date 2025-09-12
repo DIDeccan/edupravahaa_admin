@@ -1,32 +1,42 @@
-
+// redux/paymentSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+import apiList from "../../api.json"; 
 
-// ✅ Mock API call (no network request, returns fake data)
-export const fetchPayments = createAsyncThunk("payments/fetch", async () => {
-  return [
-    {
-      id: 1,
-      start_date: "2025-09-01T10:00:00",
-      end_date: "2025-09-01T12:00:00",
-      course: "ReactJS",
-      status: "Paid"
-    },
-    {
-      id: 2,
-      start_date: "2025-09-02T14:00:00",
-      end_date: "2025-09-02T16:00:00",
-      course: "NodeJS",
-      status: "Pending"
-    },
-    {
-      id: 3,
-      start_date: "2025-09-03T09:00:00",
-      end_date: "2025-09-03T11:00:00",
-      course: "Python",
-      status: "Failed"
+const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Fetch payments from backend
+export const fetchPayments = createAsyncThunk(
+  "payments/fetch",
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { auth } = getState(); // grab token from auth slice
+      const token = auth?.token || localStorage.getItem("access");
+
+      const response = await axios.get(
+        `${API_URL}${apiList.payment.paymentList}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+// Always return an array
+      if (response.data?.results) {
+        return response.data.results;
+      }
+
+      // Some APIs wrap data differently
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+
+      return [];
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
-  ];
-});
+  }
+);
 
 const paymentSlice = createSlice({
   name: "payments",
@@ -40,14 +50,15 @@ const paymentSlice = createSlice({
     builder
       .addCase(fetchPayments.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchPayments.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload; // assign dummy data
+        state.list = action.payload; // assign backend data
       })
       .addCase(fetchPayments.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload;
       });
   },
 });
