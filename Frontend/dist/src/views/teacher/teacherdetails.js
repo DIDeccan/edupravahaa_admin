@@ -1,6 +1,8 @@
 // ** React Imports
 import { Fragment, useState, forwardRef, useEffect } from 'react'
 import { Badge } from 'reactstrap'
+import '@styles/react/pages/teacher.scss';
+
 
 // ** Add New Modal Component
 import AddNewModal from './addteacherdetails'
@@ -171,14 +173,14 @@ const TeacherDetails = () => {
 
   return (
     <Fragment>
-      <Card>
+      <Card className="teacher-table-container">
         <CardHeader className='flex-md-row flex-column align-md-items-center align-items-start border-bottom'>
           <CardTitle tag='h4'>Teacher Details</CardTitle>
           <div className='d-flex mt-md-0 mt-1'>
             <Button color='primary' onClick={handleModal}>
-              <span className='align-middle ml-50'>Add Instructor</span>
+              <span className='teacher-btn align-middle ml-50'>Add Instructor</span>
             </Button >
-            <Button color='success' className='ms-1' onClick={() => downloadCSV(searchValue.length ? filteredData : list)}>
+            <Button color='success' className='teacher-btn ms-1' onClick={() => downloadCSV(searchValue.length ? filteredData : list)}>
               Export CSV
             </Button>
           </div>

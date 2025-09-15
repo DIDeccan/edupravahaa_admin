@@ -78,12 +78,6 @@ const teacherSlice = createSlice({
       // --- Register Teacher ---
       .addCase(registerTeacher.fulfilled, (state, action) => {
         state.loading = false;
-        console.log("New Teacher Added:", action.payload);
-
-        // // if backend returns the new teacher object
-        // if (action.payload?.data) {
-        //   state.list.push(action.payload.data);
-        // }
 
         let newTeacher = action.payload?.data || action.payload;
 
@@ -104,6 +98,4 @@ const teacherSlice = createSlice({
       });
   },
 });
-
-
 export default teacherSlice.reducer;

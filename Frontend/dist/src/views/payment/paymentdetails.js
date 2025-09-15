@@ -6,6 +6,7 @@ import { fetchCourses } from "../../redux/courseSlice";
 import ReactPaginate from "react-paginate";
 import DataTable from "react-data-table-component";
 import { ChevronDown } from "react-feather";
+import '@styles/react/pages/student.scss';
 
 import {
   Card,
@@ -304,13 +305,13 @@ const PaymentDetails = () => {
 
   return (
     <Fragment>
-      <Card>
+      <Card className="student-table-container">
         <CardHeader>
           <CardTitle tag="h4">Payment Details</CardTitle>
           <div className="d-flex mt-md-0 mt-1">
             <Button
               color="success"
-              className="ml-1"
+              className=" payment-btn ml-1"
               onClick={() => {
                 if (!filteredData || filteredData.length === 0) {
                   alert("No records to export");

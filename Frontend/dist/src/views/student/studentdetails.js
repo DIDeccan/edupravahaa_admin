@@ -3,6 +3,7 @@ import React, { Fragment, useState, useEffect, forwardRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchStudents } from "../../redux/studentSlice";
 import { Badge } from 'reactstrap'
+import '@styles/react/pages/student.scss';
 
 // ** Third Party Components
 import ReactPaginate from 'react-paginate'
@@ -173,12 +174,12 @@ const DataTableWithButtons = () => {
 
   return (
     <Fragment>
-      <Card>
+      <Card className="student-table-container">
         <CardHeader>
           <CardTitle tag="h4">Student Details</CardTitle>
           <div className='d-flex mt-md-0 mt-1'>
             <Button
-              color="success" className="ml-1" onClick={() => downloadCSV(searchValue.length ? filteredData :data)}>
+              color="success" className="student-btn ml-1" onClick={() => downloadCSV(searchValue.length ? filteredData :data)}>
               Export CSV
             </Button>
           </div>

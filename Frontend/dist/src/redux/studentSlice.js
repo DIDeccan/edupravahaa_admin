@@ -14,7 +14,6 @@ export const fetchStudents = createAsyncThunk("students/fetchStudents",
             console.log("token", token)
             console.log("Token in localStorage:", localStorage.getItem("access"))
 
-
             const response = await axios.get(`${API_URL}${apiList.student.studentList}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });

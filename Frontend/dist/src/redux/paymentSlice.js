@@ -1,7 +1,7 @@
 // redux/paymentSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import apiList from "../../api.json"; 
+import apiList from "../../api.json";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -21,7 +21,7 @@ export const fetchPayments = createAsyncThunk(
           },
         }
       );
-// Always return an array
+      // Always return an array
       if (response.data?.results) {
         return response.data.results;
       }
