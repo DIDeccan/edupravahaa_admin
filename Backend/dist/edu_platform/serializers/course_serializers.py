@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from edu_platform.models import Course, CourseSubscription, ClassSchedule, CourseEnrollment
-import logging
+from edu_platform.models import Course, CourseSubscription, ClassSchedule, CourseEnrollment,CoursePricing
 
+import logging
 logger = logging.getLogger(__name__)
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -167,3 +167,9 @@ class PaymentRecordSerializer(serializers.ModelSerializer):
         if enrollment and enrollment.batch:
             return enrollment.batch
         return None
+    
+
+class CoursePricingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoursePricing
+        fields = ["id", "course", "original_price", "discount_percent", "final_price", "created_at"]

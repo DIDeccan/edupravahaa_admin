@@ -1,6 +1,6 @@
 from django.urls import path
 from edu_platform.views.course_views import (
-    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, MyCoursesView,CourseStudentCountView, AllPaymentRecordsAPIView
+    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, MyCoursesView,CourseStudentCountView, AllPaymentRecordsAPIView,CoursePricingCreateAPIView
 )
 from edu_platform.views.enrollment_views import UpdateEnrollmentView
 
@@ -20,5 +20,6 @@ urlpatterns = [
     path('courses/student-count/', CourseStudentCountView.as_view(), name='course-student-count'),
     # Update batch for a subscribed course
     path('enrollment/<int:subscription_id>/', UpdateEnrollmentView.as_view(), name='update_enrollment'),
+    path('courses/pricing/create/', CoursePricingCreateAPIView.as_view(), name='create-course-pricing'),
 ]
 

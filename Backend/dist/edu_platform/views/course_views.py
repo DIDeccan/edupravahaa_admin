@@ -6,8 +6,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db.models import Q,Count
 from rest_framework import serializers
-from edu_platform.models import Course, CourseSubscription, ClassSchedule
-from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer, PaymentRecordSerializer
+from edu_platform.models import Course, CourseSubscription, ClassSchedule,CoursePricing
+from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer, PaymentRecordSerializer,CoursePricingSerializer
 from edu_platform.permissions.auth_permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
@@ -485,3 +485,18 @@ class AllPaymentRecordsAPIView(generics.ListAPIView):
                 "message_type": "error",
                 "error": str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CoursePricingCreateAPIView(generics.CreateAPIView):
+    serializer_class = CoursePricingSerializer
+
+    def create(self,request,*args,**kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        return Response({
+            "message": "Course pricing created successfully",
+            "message_type": "success",
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
