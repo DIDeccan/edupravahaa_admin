@@ -1,127 +1,129 @@
 from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription, ClassSchedule, CourseEnrollment,CoursePricing
-
+from rest_framework import serializers
+from edu_platform.models import Course, CourseSubscription, ClassSchedule, ClassSession, CourseEnrollment
+from django.utils.dateformat import format as date_format
+from django.utils import timezone
+from datetime import date
 import logging
 logger = logging.getLogger(__name__)
 
 class CourseSerializer(serializers.ModelSerializer):
     """Serializes course data for retrieval and updates."""
-    schedule = serializers.SerializerMethodField(read_only=True)
-    batches = serializers.SerializerMethodField(read_only=True)
-    
+    batches = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
         fields = [
-            'id', 'name', 'slug', 'description', 'category', 'level',
-            'thumbnail', 'duration_hours', 'base_price', 'advantages',
-            'batches', 'schedule', 'is_active', 'created_at', 'updated_at'
+            'id', 'name', 'slug', 'description', 'category', 'level', 'thumbnail',
+            'duration_hours', 'base_price', 'advantages', 'batches', 'schedule',
+            'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'batches', 'schedule']
-        extra_kwargs = {
-            'description': {'required': False},
-            'category': {'required': False},
-            'level': {'required': False},
-            'thumbnail': {'required': False},
-            'duration_hours': {'required': False},
-            'base_price': {'required': False},
-            'advantages': {'required': False},
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Ensure partial updates are allowed for PUT requests
-        if self.context.get('request') and self.context['request'].method in ['PUT', 'PATCH']:
-            self.partial = True
-
-    def validate_duration_hours(self, value):
-        if value is not None and value <= 0:
-            raise serializers.ValidationError({
-                'error': 'Duration must be a positive integer.'
-            })
-        return value
-
-    def validate_base_price(self, value):
-        if value is not None and value < 0:
-            raise serializers.ValidationError({
-                'error': 'Base price cannot be negative.'
-            })
-        return value
-
-    def validate_advantages(self, value):
-        if value is not None and not isinstance(value, list):
-            raise serializers.ValidationError({
-                'error': 'Advantages must be a list.'
-            })
-        return value
-
-    def validate_level(self, value):
-        if value is not None and value not in dict(Course.LEVEL_CHOICES).keys():
-            raise serializers.ValidationError({
-                'error': f"Level must be one of: {', '.join(dict(Course.LEVEL_CHOICES).keys())}."
-            })
-        return value
 
     def get_batches(self, obj):
-        """Returns batches for the course, filtered by context if provided."""
-        batches = self.context.get('batches')
-        if batches:
-            return [batch for batch in batches if batch in ['weekdays', 'weekends']]
-        
-        schedules = ClassSchedule.objects.filter(course=obj)
-        all_batches = set()
-        for schedule in schedules:
-            all_batches.update(schedule.batches)
-        return list(all_batches)
+        request = self.context.get('request')
+        today = date.today()
+        if request and request.user.role == 'teacher':
+            return list(obj.class_schedules.filter(teacher=request.user).values_list('batch', flat=True).distinct())
+        elif request and request.user.role == 'student':
+            # For MyCoursesView, only include the enrolled batch
+            if 'view' in self.context and self.context['view'].__class__.__name__ == 'MyCoursesView':
+                enrollment = CourseEnrollment.objects.filter(
+                    student=request.user,
+                    course=obj,
+                    subscription__payment_status='completed'
+                ).first()
+                if enrollment:
+                    return [enrollment.batch]
+                return []
+            # For CourseListView, include upcoming batches
+            return list(obj.class_schedules.filter(batch_start_date__gte=today).values_list('batch', flat=True).distinct())
+        # For admins or others, return all batches
+        return list(obj.class_schedules.values_list('batch', flat=True).distinct())
 
     def get_schedule(self, obj):
-        """Returns schedule entries for the course, filtered by assigned/enrolled batches if provided."""
-        batches = self.context.get('batches')
-        schedules = ClassSchedule.objects.filter(course=obj)
-        all_schedules = []
-        
-        for schedule in schedules:
-            for s in schedule.schedule:
-                if not batches or (batches and s.get('type') in batches):
-                    if s not in all_schedules:
-                        all_schedules.append(s)
-        
-        return all_schedules
+        request = self.context.get('request')
+        today = date.today()
+        if request and request.user.role == 'teacher':
+            class_schedules = obj.class_schedules.filter(teacher=request.user).order_by('batch_start_date')
+        elif request and request.user.role == 'student':
+            # For MyCoursesView, only include schedule for the enrolled batch
+            if 'view' in self.context and self.context['view'].__class__.__name__ == 'MyCoursesView':
+                enrollment = CourseEnrollment.objects.filter(
+                    student=request.user,
+                    course=obj,
+                    subscription__payment_status='completed'
+                ).first()
+                if enrollment:
+                    class_schedules = obj.class_schedules.filter(batch=enrollment.batch).order_by('batch_start_date')
+                else:
+                    class_schedules = obj.class_schedules.none()
+            else:
+                # For CourseListView, include upcoming batches
+                class_schedules = obj.class_schedules.filter(batch_start_date__gte=today).order_by('batch_start_date')
+        else:
+            class_schedules = obj.class_schedules.all().order_by('batch_start_date')
+
+        schedules = []
+        for cs in class_schedules:
+            sessions = cs.sessions.order_by('session_date', 'start_time')
+            if not sessions.exists():
+                continue
+
+            if cs.batch == 'weekdays':
+                first_session = sessions.first()
+                start_str = first_session.start_time.strftime('%I:%M %p')
+                end_str = first_session.end_time.strftime('%I:%M %p')
+                days = sorted(set(s.session_date.strftime('%A') for s in sessions))
+                schedules.append({
+                    'days': days,
+                    'time': f"{start_str} to {end_str}",
+                    'type': cs.batch,
+                    'batchStartDate': cs.batch_start_date.isoformat(),
+                    'batchEndDate': cs.batch_end_date.isoformat()
+                })
+            elif cs.batch == 'weekends':
+                day_time_groups = {}
+                for session in sessions:
+                    day = session.session_date.strftime('%A')
+                    start_str = session.start_time.strftime('%I:%M %p')
+                    end_str = session.end_time.strftime('%I:%M %p')
+                    time_key = f"{start_str} to {end_str}"
+                    key = (day, time_key)
+                    if key not in day_time_groups:
+                        day_time_groups[key] = []
+                    day_time_groups[key].append(session)
+
+                for (day, time_key), _ in day_time_groups.items():
+                    schedules.append({
+                        'days': [day],
+                        'time': time_key,
+                        'type': cs.batch,
+                        'batchStartDate': cs.batch_start_date.isoformat(),
+                        'batchEndDate': cs.batch_end_date.isoformat()
+                    })
+
+        return schedules
 
 
 class MyCoursesSerializer(serializers.Serializer):
-    """Serializes purchased courses for students or assigned courses for teachers."""
-    id = serializers.IntegerField(read_only=True)
-    course = serializers.SerializerMethodField(read_only=True)
-    purchased_at = serializers.DateTimeField(read_only=True, allow_null=True)
-    payment_status = serializers.CharField(read_only=True, allow_null=True)
-
-    def get_course(self, obj):
-        """Serializes the course with batch details based on user role."""
-        request = self.context.get('request')
-        user = request.user if request else None
-        batch = None
-        batches = None
-        
-        if user and user.role == 'student':
-            enrollment = CourseEnrollment.objects.filter(subscription=obj).first()
-            batch = enrollment.batch if enrollment else None
-        elif user and user.role == 'teacher':
-            schedules = ClassSchedule.objects.filter(course=obj, teacher=user)
-            batches = set()
-            for schedule in schedules:
-                batches.update(schedule.batches)
-            batches = list(batches) if batches else None
-        
-        try:
-            return CourseSerializer(
-                obj if user.role == 'teacher' else obj.course,
-                context={'batches': batches or (batch and [batch]), 'request': self.context.get('request')}
-            ).data
-        except Exception as e:
-            logger.error(f"Error serializing course for {user.role} (course_id: {obj.id if user.role == 'teacher' else obj.course.id}): {str(e)}")
-            raise serializers.ValidationError({
-                'error': f'Failed to serialize course: {str(e)}'
-            })
+    def to_representation(self, instance):
+        if isinstance(instance, CourseSubscription):
+            return {
+                'id': instance.id,
+                'course': CourseSerializer(instance.course, context=self.context).data,
+                'purchased_at': instance.purchased_at,
+                'payment_status': instance.payment_status
+            }
+        elif isinstance(instance, Course):
+            return {
+                'id': instance.id,
+                'course': CourseSerializer(instance, context=self.context).data,
+                'purchased_at': None,
+                'payment_status': None
+            }
+        return super().to_representation(instance)
 
 
 class PurchasedCoursesSerializer(serializers.ModelSerializer):
@@ -140,8 +142,6 @@ class CourseStudentCountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = ['name', 'student_count']   
-
-
 
 
 class PaymentRecordSerializer(serializers.ModelSerializer):

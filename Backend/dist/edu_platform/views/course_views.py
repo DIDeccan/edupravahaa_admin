@@ -46,12 +46,14 @@ class CourseListView(generics.ListAPIView):
     
     def get_queryset(self):
         """Filters courses based on user role, purchase status, and query parameters."""
+        today = date.today()
+        # Start with active courses and apply upcoming batch filter for students
         queryset = Course.objects.filter(is_active=True)
         user = self.request.user
         if user.is_authenticated and user.role == 'student':
-            if not user.is_trial_expired and not user.has_purchased_courses:
-                pass
-            elif user.has_purchased_courses:
+            # Only include courses with upcoming batches
+            queryset = queryset.filter(class_schedules__batch_start_date__gte=today).distinct()
+            if user.has_purchased_courses:
                 purchased_course_ids = CourseSubscription.objects.filter(
                     student=user, payment_status='completed'
                 ).values_list('course__id', flat=True)
@@ -354,8 +356,8 @@ class MyCoursesView(generics.ListAPIView):
                                                         'days': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
                                                         'time': openapi.Schema(type=openapi.TYPE_STRING),
                                                         'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                                        'startDate': openapi.Schema(type=openapi.TYPE_STRING),
-                                                        'endDate': openapi.Schema(type=openapi.TYPE_STRING)
+                                                        'batchStartDate': openapi.Schema(type=openapi.TYPE_STRING),
+                                                        'batchEndDate': openapi.Schema(type=openapi.TYPE_STRING)
                                                     }
                                                 )
                                             ),
@@ -420,8 +422,7 @@ class MyCoursesView(generics.ListAPIView):
                 'error': 'Failed to retrieve courses. Please try again.',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-# api/views.py
+
 
 class CourseStudentCountView(APIView):
     def get(self, request):

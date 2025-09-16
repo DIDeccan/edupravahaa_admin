@@ -21,6 +21,7 @@ class User(AbstractUser):
     )
     
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+    username = models.CharField(max_length=150, blank=True, null=True, unique=True)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
     email_verified = models.BooleanField(default=False)
@@ -107,12 +108,7 @@ class User(AbstractUser):
             return 0
         
         return int(time_remaining.total_seconds())
-    @classmethod
-    def students_not_enrolled(cls):
-        """Return all students who are not enrolled in any course."""
-        from .models import CourseEnrollment  # avoid circular import
-        enrolled_students = CourseEnrollment.objects.values_list("student_id", flat=True)
-        return cls.objects.filter(role="student").exclude(id__in=enrolled_students)
+
 
 class TeacherProfile(models.Model):
     """Stores professional details for teachers."""
@@ -167,6 +163,7 @@ class StudentProfile(models.Model):
         """Returns student's full name or email."""
         return f"Student: {self.user.get_full_name() or self.user.email}"
 
+
 class OTP(models.Model):
     """Manages one-time passwords for email or phone verification."""
     OTP_TYPE_CHOICES = (
@@ -177,6 +174,7 @@ class OTP(models.Model):
     PURPOSE_CHOICES = (
         ('registration', 'Registration'),
         ('password_reset', 'Password Reset'),
+        ('profile_update', 'Profile Update'),
     )
     
     identifier = models.CharField(max_length=255)  # email or phone number
@@ -359,22 +357,71 @@ class ClassSchedule(models.Model):
         limit_choices_to={'role': 'teacher'}
     )
     course = models.ForeignKey(
-        Course,
+        'Course',
         on_delete=models.CASCADE,
         related_name='class_schedules'
     )
-    batches = models.JSONField(default=list)
-    schedule = models.JSONField(default=list)
+    batch = models.CharField( max_length=20, choices=[("weekdays", "Weekdays"), ("weekends", "Weekends")])
+    batch_start_date = models.DateField()
+    batch_end_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'class_schedules'
-        unique_together = ['teacher', 'course']
-        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=["course", "teacher", "batch"]),
+        ]
+        ordering = ['batch_start_date']
         
     def __str__(self):
-        return f"{self.course.name} - {self.teacher.email}"
+        return f"{self.course.name} - {self.teacher.email} - {self.batch} - Batch from - {self.batch_start_date} to {self.batch_end_date}"
+
+
+class ClassSession(models.Model):
+    schedule = models.ForeignKey(
+        ClassSchedule,
+        on_delete=models.CASCADE,
+        related_name='sessions'
+    )
+    class_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    session_date = models.DateField()
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    recording_url = models.URLField(blank=True, null=True, help_text="S3 URL for class recording")
+    is_active = models.BooleanField(default=True, help_text="Whether the class is live or accessible")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'class_sessions'
+        indexes = [
+            models.Index(fields=['class_id']),
+            models.Index(fields=["schedule", "session_date", "start_time"]),
+        ]
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Class - {self.schedule.course.name} ({self.schedule.batch})- Timing - {self.start_time} - {self.end_time}"
+
+    def clean(self):
+        if self.start_time >= self.end_time:
+            raise ValidationError("Start time must be before end time.")
+
+        # Check overlapping sessions only for the same teacher
+        overlapping_sessions = ClassSession.objects.filter(
+            schedule__teacher=self.schedule.teacher,
+            session_date=self.session_date,
+            start_time__lt=self.end_time,
+            end_time__gt=self.start_time,
+        ).exclude(pk=self.pk)
+
+        if overlapping_sessions.exists():
+            raise ValidationError(
+                f"Teacher {self.schedule.teacher.email} already has a class "
+                f"at {self.start_time.strftime('%H:%M')}–{self.end_time.strftime('%H:%M')} "
+                f"on {self.session_date}."
+            )
 
 
 #--------Enrollment models---------#

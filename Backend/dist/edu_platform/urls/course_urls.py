@@ -14,10 +14,10 @@ urlpatterns = [
     path('admin/update/<int:id>/', AdminCourseUpdateView.as_view(), name='admin_course_update'),
     path('payments/all/', AllPaymentRecordsAPIView.as_view(), name='all-payment-records'),
 
-    
     # Lists purchased courses for the authenticated student
     path('my_courses/', MyCoursesView.as_view(), name='my_courses'),
     path('courses/student-count/', CourseStudentCountView.as_view(), name='course-student-count'),
+
     # Update batch for a subscribed course
     path('enrollment/<int:subscription_id>/', UpdateEnrollmentView.as_view(), name='update_enrollment'),
     path('courses/pricing/create/', CoursePricingCreateAPIView.as_view(), name='create-course-pricing'),

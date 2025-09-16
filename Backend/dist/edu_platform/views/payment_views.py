@@ -10,18 +10,15 @@ from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription, CourseEnrollment
 from edu_platform.permissions.auth_permissions import IsStudent
 from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer,TransactionReportSerializer
-import razorpay
-import logging
-
-
-
-import pandas as pd
 from io import BytesIO
 from django.http import HttpResponse
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
+import razorpay
+import logging
+import pandas as pd
 
 # Initialize Razorpay client
 client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -316,7 +313,7 @@ class VerifyPaymentView(BaseAPIView):
                 'razorpay_signature': signature
             }
 
-            if settings.DEBUG and "fake_secret_for_testing" == 'fake_secret_for_testing':
+            if settings.DEBUG and settings.RAZORPAY_KEY_SECRET == 'fake_secret_for_testing':
                 logger.info(f"Skipping signature verification for subscription {subscription.id} in test mode")
             else:
                 try:

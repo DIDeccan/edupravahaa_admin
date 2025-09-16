@@ -28,7 +28,6 @@ urlpatterns = [
 
     # Admin endpoints
     path('register/teacher/', TeacherRegisterView.as_view(), name='register_teacher'),
-    #path('teachers/', TeacherListView.as_view(), name='teacher_list'),
     path('register/admin/', AdminRegisterView.as_view(), name='register_admin'),
     path('admin/teachers/', ListTeachersView.as_view(), name='list_teachers'),
     path('admin/students/', ListStudentsView.as_view(), name='list_students'),
