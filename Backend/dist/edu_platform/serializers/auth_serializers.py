@@ -575,12 +575,11 @@ class ListTeachersSerializer(serializers.ModelSerializer):
         return [schedule.course.name for schedule in schedules]
 
     def get_batches(self, obj):
-        """Fetch batches from ClassSchedule."""
+        """Fetch unique batch values from ClassSchedule."""
         teacher_user = getattr(obj, 'user', obj)
         schedules = ClassSchedule.objects.filter(teacher=teacher_user)
-        batches = set()
-        for schedule in schedules:
-            batches.update(schedule.batches)
+        # Collect unique batch values (e.g., "weekdays", "weekends")
+        batches = {schedule.batch for schedule in schedules}
         return list(batches)
 
 class ListStudentsSerializer(serializers.ModelSerializer):
