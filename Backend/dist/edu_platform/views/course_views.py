@@ -11,6 +11,7 @@ from edu_platform.serializers.course_serializers import CourseSerializer, Purcha
 from edu_platform.permissions.auth_permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
+from datetime import date
 import logging
 
 logger = logging.getLogger(__name__)
