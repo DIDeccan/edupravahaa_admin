@@ -18,7 +18,6 @@ import { fetchCourses } from "../../redux/courseSlice";
 import '@styles/react/libs/flatpickr/flatpickr.scss'
 import Swal from "sweetalert2";
 
-
 const AddNewModal = ({ open, handleModal }) => {
   const dispatch = useDispatch()
   const [formData, setFormData] = useState({
@@ -96,7 +95,7 @@ const AddNewModal = ({ open, handleModal }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (loading) return; // prevent double submit
+    if (loading) return;
     setLoading(true);
 
     try {
@@ -123,24 +122,29 @@ const AddNewModal = ({ open, handleModal }) => {
         return;
       }
 
-      const courseAssignments = [
-        {
-          // course_id: parseInt(formData.course, 10),
-          course_id: formData.course,
-          batches: formData.batch || [],
-          weekdays_start_date: formData.weekdaysStartDate || "",
-          weekdays_end_date: formData.weekdaysEndDate || "",
-          weekdays_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          weekdays_start: formData.weekdaysStart || "",
-          weekdays_end: formData.weekdaysEnd || "",
-          weekend_start_date: formData.weekendStartDate || "",
-          weekend_end_date: formData.weekendEndDate || "",
-          saturday_start: formData.saturdayStart || "",
-          saturday_end: formData.saturdayEnd || "",
-          sunday_start: formData.sundayStart || "",
-          sunday_end: formData.sundayEnd || "",
-        },
-      ];
+      const courseAssignments = {
+        course_id: formData.course,
+        batches: formData.batch || []
+      };
+
+      if (formData.batch.includes("weekdays")) {
+        courseAssignments.weekdays_start_date = formData.weekdaysStartDate;
+        courseAssignments.weekdays_end_date = formData.weekdaysEndDate;
+        courseAssignments.weekdays_days = [
+          "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
+        ];
+        courseAssignments.weekdays_start = formData.weekdaysStart;
+        courseAssignments.weekdays_end = formData.weekdaysEnd;
+      }
+
+      if (formData.batch.includes("weekends")) {
+        courseAssignments.weekend_start_date = formData.weekendStartDate;
+        courseAssignments.weekend_end_date = formData.weekendEndDate;
+        courseAssignments.saturday_start = formData.saturdayStart;
+        courseAssignments.saturday_end = formData.saturdayEnd;
+        courseAssignments.sunday_start = formData.sundayStart;
+        courseAssignments.sunday_end = formData.sundayEnd;
+      }
 
       const payload = {
         name: formData.name,
@@ -148,7 +152,7 @@ const AddNewModal = ({ open, handleModal }) => {
         phone: formData.phone,
         password: formData.password,
         confirm_password: formData.confirmPassword,
-        course_assignments: courseAssignments,
+        course_assignments: [courseAssignments],
       };
 
       const resultAction = await dispatch(registerTeacher(payload));
@@ -176,7 +180,7 @@ const AddNewModal = ({ open, handleModal }) => {
           password: '',
           confirmPassword: ''
         });
-        handleModal(); // close modal
+        handleModal();
       } else {
         const data = resultAction.payload;
         let errorMessage = "";
@@ -203,10 +207,9 @@ const AddNewModal = ({ open, handleModal }) => {
         text: err.message || "Something went wrong!",
       });
     } finally {
-      setLoading(false); // always reset loading
+      setLoading(false);
     }
   };
-
 
   const CloseBtn = <X className='cursor-pointer' size={15} onClick={handleModal} />
 
@@ -244,11 +247,11 @@ const AddNewModal = ({ open, handleModal }) => {
           {/* Course */}
           <FormGroup>
             <Label for='course'>Course</Label>
-            <Input type="select" value={formData.course} 
-            onChange={(e) =>
-              setFormData({ ...formData, course: parseInt(e.target.value, 10) })
-            }
-             required>
+            <Input type="select" value={formData.course}
+              onChange={(e) =>
+                setFormData({ ...formData, course: parseInt(e.target.value, 10) })
+              }
+              required>
               <option value="" disabled>Select course</option>
               {courseLoading ? (
                 <option>Loading...</option>
@@ -499,7 +502,6 @@ const AddNewModal = ({ open, handleModal }) => {
           {/* <Button color='primary' type='submit'> */}
           <Button color='primary' disabled={loading}>
             {loading ? "Adding..." : "Submit"}
-
           </Button>
         </form>
       </ModalBody>

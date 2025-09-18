@@ -20,7 +20,7 @@ export const fetchStudents = createAsyncThunk("students/fetchStudents",
 
             console.log("API response:", response.data);
 
-            return response.data.data; // assuming API returns array of teachers
+            return response.data.data;
         } catch (err) {
             return rejectWithValue(err.response?.data || err.message);
         }

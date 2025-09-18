@@ -45,24 +45,25 @@ const columns = [
   },
   {
     name: 'Courses',
-    selector: row => row.course_assigned.join(","),
+    selector: row => (row.course_assigned ? row.course_assigned.join(", ") : ""),
     sortable: true
   },
   {
     name: 'Batch (Weekdays/Weekend)',
-    selector: row => row.batches.join(","),
+    selector: row =>  row.batches.join(", "),
     sortable: true
   },
-  
+
   {
-    name: 'Status',
-    cell: row => (
-      <Badge color={row.status ? 'light-success' : 'light-danger'}>
-        {row.status ? 'Active' : 'Inactive'}
-      </Badge>
-    ),
-    sortable: true
-  }
+  name: 'Status',
+  selector: row => row.status,
+  cell: row => (
+    <Badge color={row.status ? 'light-success' : 'light-danger'}>
+      {row.status ? 'Active' : 'Inactive'}
+    </Badge>
+  ),
+  sortable: true
+}
 ]
 
 // ** Bootstrap Checkbox Component
@@ -83,13 +84,14 @@ const TeacherDetails = () => {
   const [searchValue, setSearchValue] = useState('')
   const [filteredData, setFilteredData] = useState([])
 
-  const API_URL = import.meta.env.VITE_API_BASE_URL // API base URL
-  const token = localStorage.getItem('token') // get token dynamically
+  const API_URL = import.meta.env.VITE_API_BASE_URL 
+  const token = localStorage.getItem('token') 
 
   // ** Fetch teachers on load
   useEffect(() => {
     dispatch(fetchTeachers())
   }, [dispatch])
+  console.log("Redux list:", list)
 
   // ** Modal toggle
   const handleModal = () => setModal(!modal)
@@ -200,13 +202,13 @@ const TeacherDetails = () => {
             />
           </Col>
         </Row>
-      
+
         {loading ? (
           <p className='p-2'>Loading...</p>
         ) : error ? (
           <p className='p-2 text-danger'>Error: {error}</p>
         ) : (
-          
+
           <DataTable
             noHeader
             pagination
@@ -217,8 +219,9 @@ const TeacherDetails = () => {
             sortIcon={<ChevronDown size={10} />}
             paginationDefaultPage={currentPage + 1}
             paginationComponent={CustomPagination}
-            data={searchValue.length ? filteredData : list}
+            data={searchValue.length ? filteredData : (list || [])}
             selectableRowsComponent={BootstrapCheckbox}
+            responsive={true}
           />
         )}
       </Card>
