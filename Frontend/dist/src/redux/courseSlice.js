@@ -1,7 +1,7 @@
 // src/redux/courseSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
 import apiList from "../../api.json"; 
+import api from "../utility/api";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -13,7 +13,7 @@ export const fetchCourses = createAsyncThunk(
       const { auth } = getState(); // get token if needed
       const token = auth?.token || localStorage.getItem("access");
 
-      const response = await axios.get(
+      const response = await api.get(
         `${API_URL}${apiList.courses.coursesList}`,
         {
           headers: {

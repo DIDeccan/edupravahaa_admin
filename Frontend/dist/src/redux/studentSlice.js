@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
 import apiList from "../../api.json"
+import api from "../utility/api"
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -11,14 +11,14 @@ export const fetchStudents = createAsyncThunk("students/fetchStudents",
             const { auth } = getState()
             const token = auth?.token || localStorage.getItem("access");
 
-            console.log("token", token)
-            console.log("Token in localStorage:", localStorage.getItem("access"))
+            // console.log("token", token)
+            // console.log("Token in localStorage:", localStorage.getItem("access"))
 
-            const response = await axios.get(`${API_URL}${apiList.student.studentList}`, {
+            const response = await api.get(`${API_URL}${apiList.student.studentList}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            console.log("API response:", response.data);
+            // console.log("API response:", response.data);
 
             return response.data.data;
         } catch (err) {

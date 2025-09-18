@@ -222,7 +222,6 @@ const PaymentDetails = () => {
       setFilteredData(updatedData);
       setTableData(updatedData);
     } else {
-      // setFilteredData();
       applyFilters();
     }
   };
@@ -386,44 +385,50 @@ const PaymentDetails = () => {
 
         {showTable && (
           <>
-            <Row className="justify-content-end mx-0">
-              <Col
-                md="3"
-                sm="12"
-                className="d-flex align-items-center justify-content-end mt-1">
-                <Input
-                  id="search-input"
-                  bsSize="sm"
-                  type="text"
-                  value={searchValue}
-                  onChange={handleFilter}
-                  placeholder="Search payments..."
-                />
-              </Col>
-            </Row>
-
             {loading ? (
               <p className="p-2">Loading...</p>
             ) : error ? (
               <p className="p-2 text-danger">Error: {error}</p>
+            ) : tableData && tableData.length > 0 ? (
+              <>
+                {/* Search input only if records exist*/}
+                <Row className="justify-content-end mx-0">
+                  <Col
+                    md="3"
+                    sm="12"
+                    className="d-flex align-items-center justify-content-end mt-1"
+                  >
+                    <Input
+                      id="search-input"
+                      bsSize="sm"
+                      type="text"
+                      value={searchValue}
+                      onChange={handleFilter}
+                      placeholder="Search payments..."
+                    />
+                  </Col>
+                </Row>
+
+                <DataTable
+                  noHeader
+                  pagination
+                  selectableRows
+                  columns={columns}
+                  data={tableData}
+                  paginationPerPage={7}
+                  className="react-dataTable"
+                  sortIcon={<ChevronDown size={10} />}
+                  paginationDefaultPage={currentPage + 1}
+                  paginationComponent={CustomPagination}
+                  selectableRowsComponent={BootstrapCheckbox}
+                />
+              </>
             ) : (
-              <DataTable
-                noHeader
-                pagination
-                selectableRows
-                columns={columns}
-                data={tableData}
-                paginationPerPage={7}
-                className="react-dataTable"
-                sortIcon={<ChevronDown size={10} />}
-                paginationDefaultPage={currentPage + 1}
-                paginationComponent={CustomPagination}
-                selectableRowsComponent={BootstrapCheckbox}
-              />
-            )
-            }
+              <p className="text-center p-2">No records found</p>
+            )}
           </>
         )}
+
       </Card>
     </Fragment >
   );

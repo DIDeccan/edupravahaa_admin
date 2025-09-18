@@ -93,7 +93,7 @@ const DataTableWithButtons = () => {
   useEffect(() => {
     dispatch(fetchStudents()).then((res) => {
       ;
-      console.log("Fetched students:", res.payload);
+      // console.log("Fetched students:", res.payload);
     });
   }, [dispatch]);
 

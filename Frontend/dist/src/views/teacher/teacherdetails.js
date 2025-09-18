@@ -91,7 +91,6 @@ const TeacherDetails = () => {
   useEffect(() => {
     dispatch(fetchTeachers())
   }, [dispatch])
-  console.log("Redux list:", list)
 
   // ** Modal toggle
   const handleModal = () => setModal(!modal)
