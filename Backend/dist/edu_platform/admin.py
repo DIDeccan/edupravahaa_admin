@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, OTP, Course, CourseSubscription, TeacherProfile, StudentProfile,ClassSchedule,CourseEnrollment, ClassSession
+from .models import User, OTP, Course, CourseSubscription, TeacherProfile, StudentProfile,ClassSchedule,CourseEnrollment, ClassSession, CoursePricing 
 # Register your models here.
 admin.site.register(User)
 admin.site.register(TeacherProfile)
@@ -10,3 +10,4 @@ admin.site.register(CourseSubscription)
 admin.site.register(ClassSchedule)
 admin.site.register(CourseEnrollment)
 admin.site.register(ClassSession)
+admin.site.register(CoursePricing)
