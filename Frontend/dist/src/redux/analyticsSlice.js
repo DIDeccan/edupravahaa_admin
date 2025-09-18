@@ -14,9 +14,10 @@ export const fetchUsersByCourse = createAsyncThunk(
       const token = getState().auth?.token || localStorage.getItem("access");
       if (!token) return rejectWithValue("No auth token found");
 
-      const response = await axios.get(`${API_URL}${apiList.courses.studentCount}`, {
+      const response = await axios.get(`${API_URL}${apiList.barchart.studentCount}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
 
       return response.data;
     } catch (err) {
@@ -119,7 +120,10 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchUsersByCourse.fulfilled, (state, action) => {
         state.loading = false;
-        state.studentEnrollList = action.payload;
+       state.studentEnrollList = action.payload.data || action.payload;
+      // .addCase(fetchUsersByCourse.fulfilled, (state, action) => {
+      //   state.studentEnrollList = action.payload.data || []; // ✅ just the array
+      
       })
       .addCase(fetchUsersByCourse.rejected, (state, action) => {
         state.loading = false;
@@ -149,7 +153,7 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchUsersByStatus.fulfilled, (state, action) => {
         state.loadingUsersByStatus = false;
-        state.usersByStatus = action.payload;
+        state.usersByStatus = action.payload.data || action.payload;
       })
       .addCase(fetchUsersByStatus.rejected, (state, action) => {
         state.loadingUsersByStatus = false;

@@ -14,12 +14,14 @@ const ApexBarChart = () => {
     dispatch(fetchUsersByCourse());
   }, [dispatch]);
 
-  //console.log("studentEnrollList", studentEnrollList);
+  console.log("studentEnrollList", studentEnrollList);
 
   // Use correct keys from your API
-  const categories = studentEnrollList.map((item) => item.name);
-  const values = studentEnrollList.map((item) => item.student_count);
-
+   const categories = studentEnrollList.map((item) => item.name);
+   const values = studentEnrollList.map((item) => item.student_count);
+  // const categories = studentEnrollList?.map((item) => item.name) || [];
+  // const values = studentEnrollList?.map((item) => item.student_count) || [];
+  
   const options = {
     chart: { type: "bar", toolbar: { show: false } },
     plotOptions: { bar: { horizontal: false, columnWidth: "40%", borderRadius: 6, distributed: true } },
