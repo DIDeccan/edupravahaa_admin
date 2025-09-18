@@ -39,7 +39,7 @@
 
   .react-dataTable {
     border-radius: 0.5rem;
-    overflow: hidden;
+     overflow-x: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
     .rdt_TableHead {
@@ -112,7 +112,7 @@
       }
 
       .rdt_TableCell {
-        color: $white; // force cell text white
+        color: $white; 
       }
     }
   }
@@ -157,5 +157,21 @@
 
   .react-dataTable {
     font-size: 0.9rem;
+  }
+}
+@media (max-width: 768px) {
+  .student-table-container {
+    padding: 1rem;
+  }
+
+  .student-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+@media (max-width: 992px) {
+  .react-dataTable {
+    font-size: 0.95rem;
+    overflow-x: auto; 
   }
 }
