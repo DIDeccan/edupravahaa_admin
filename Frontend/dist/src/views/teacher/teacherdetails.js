@@ -23,7 +23,8 @@ import {
   Input,
   Label,
   Row,
-  Col
+  Col,
+  Spinner
 } from 'reactstrap'
 
 // ** Table Columns
@@ -50,20 +51,20 @@ const columns = [
   },
   {
     name: 'Batch (Weekdays/Weekend)',
-    selector: row =>  row.batches.join(", "),
+    selector: row => row.batches.join(", "),
     sortable: true
   },
 
   {
-  name: 'Status',
-  selector: row => row.status,
-  cell: row => (
-    <Badge color={row.status ? 'light-success' : 'light-danger'}>
-      {row.status ? 'Active' : 'Inactive'}
-    </Badge>
-  ),
-  sortable: true
-}
+    name: 'Status',
+    selector: row => row.status,
+    cell: row => (
+      <Badge color={row.status ? 'light-success' : 'light-danger'}>
+        {row.status ? 'Active' : 'Inactive'}
+      </Badge>
+    ),
+    sortable: true
+  }
 ]
 
 // ** Bootstrap Checkbox Component
@@ -84,14 +85,13 @@ const TeacherDetails = () => {
   const [searchValue, setSearchValue] = useState('')
   const [filteredData, setFilteredData] = useState([])
 
-  const API_URL = import.meta.env.VITE_API_BASE_URL 
-  const token = localStorage.getItem('token') 
+  const API_URL = import.meta.env.VITE_API_BASE_URL
+  const token = localStorage.getItem('token')
 
   // ** Fetch teachers on load
   useEffect(() => {
     dispatch(fetchTeachers())
   }, [dispatch])
-  console.log("Redux list:", list)
 
   // ** Modal toggle
   const handleModal = () => setModal(!modal)
@@ -204,9 +204,12 @@ const TeacherDetails = () => {
         </Row>
 
         {loading ? (
-          <p className='p-2'>Loading...</p>
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "200px" }}>
+            <Spinner color="primary" />
+          </div>
+
         ) : error ? (
-          <p className='p-2 text-danger'>Error: {error}</p>
+          <p className='p-2 text-danger text-center'>Error: {error}</p>
         ) : (
 
           <DataTable

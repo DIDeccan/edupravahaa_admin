@@ -7,7 +7,7 @@ import teachers from './teacherSlice'
 import students from './studentSlice'
 import payments from './paymentSlice'
 import courses from './courseSlice'
-
+import pricing from './priceSlice'
 
 
 
@@ -19,7 +19,9 @@ const rootReducer = {
   teachers,
   students,
   payments,
-  courses
+  courses,
+  pricing
+
 
 } 
 

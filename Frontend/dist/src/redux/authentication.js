@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import apiList from '../../api.json'
+import api from "../utility/api"
  
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -10,7 +11,7 @@ export const loginUser = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
 
     try {
-      const response = await axios.post(API_URL + apiList.auth.login, credentials);
+      const response = await api.post(API_URL + apiList.auth.login, credentials);
       return response.data;
  
     } catch (err) {
@@ -25,7 +26,7 @@ export const getProfile = createAsyncThunk(
     console.log("click")
     try {
       const token = getState().auth.token;
-      const response = await axios.get(API_URL + apiList.auth.getProfile, {
+      const response = await api.get(API_URL + apiList.auth.getProfile, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -44,7 +45,7 @@ export const logoutUser = createAsyncThunk(
       const accessToken = auth.token;
       // console.log("acc",accessToken)
  
-      const response = await axios.post(
+      const response = await api.post(
         API_URL + apiList.auth.logout,
         { refresh: refreshToken },
         {
@@ -53,6 +54,31 @@ export const logoutUser = createAsyncThunk(
             Authorization: `Bearer ${accessToken}`,
           },
         }
+      );
+ 
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
+// refresh token api
+export const refreshTokenThunk = createAsyncThunk(
+  'auth/refreshToken',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { auth } = getState();
+      const refreshToken = auth.refreshToken;
+ 
+      if (!refreshToken) {
+        return rejectWithValue('No refresh token found');
+      }
+ 
+      const response = await axios.post(
+        `${API_URL}${apiList.auth.refreshToken}`,
+        { refresh: refreshToken },
+        { headers: { 'Content-Type': 'application/json' } }
       );
  
       return response.data;

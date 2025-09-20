@@ -1,7 +1,8 @@
 {
     "auth": {
         "login": "/api/auth/login/",
-        "getProfile": "/api/auth/profile/"
+        "getProfile": "/api/auth/profile/",
+        "refreshToken": "/api/auth/token/refresh/"
     },
     "teacher": {
         "teacherList": "/api/auth/admin/teachers/",
@@ -31,5 +32,10 @@
     },
     "students": {
         "unenrolled": "/api/auth/students/not-enrolled/"
-    }
+    },
+     "calculator":{
+        "price": "/api/courses/courses/pricing/create/"
+
+     }
+
 }
