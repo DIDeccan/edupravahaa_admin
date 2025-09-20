@@ -546,6 +546,14 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
                                     end_time=session_end
                                 )
                             current_date += timedelta(days=1)
+            try:
+                send_teacher_credentials(
+                    email=user.email,
+                    username=user.username,
+                    password=password
+                )
+            except Exception as e:
+                logger.error(f"Failed to send teacher credentials email: {str(e)}")
 
             return user
         except Exception as e:
