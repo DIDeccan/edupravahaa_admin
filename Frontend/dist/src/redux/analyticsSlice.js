@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import apiList from "../../api.json";
+import api from "../utility/api"
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -14,7 +15,7 @@ export const fetchUsersByCourse = createAsyncThunk(
       const token = getState().auth?.token || localStorage.getItem("access");
       if (!token) return rejectWithValue("No auth token found");
 
-      const response = await axios.get(`${API_URL}${apiList.barchart.studentCount}`, {
+      const response = await api.get(`${API_URL}${apiList.barchart.studentCount}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -34,7 +35,7 @@ export const fetchTransactionsReport = createAsyncThunk(
       const token = getState().auth?.token || localStorage.getItem("access");
       if (!token) return rejectWithValue("No auth token found");
 
-      const response = await axios.get(`${API_URL}${apiList.payments.transactionsReport}`, {
+      const response = await api.get(`${API_URL}${apiList.payments.transactionsReport}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { limit: 5 },
       });
@@ -54,7 +55,7 @@ export const fetchUsersByStatus = createAsyncThunk(
       const token = getState().auth?.token || localStorage.getItem("access");
       if (!token) return rejectWithValue("No auth token found");
 
-      const response = await axios.get(`${API_URL}${apiList.users.statusCount}`, {
+      const response = await api.get(`${API_URL}${apiList.users.statusCount}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -75,7 +76,7 @@ export const fetchUnenrolledStudents = createAsyncThunk(
       const url = `${API_URL}${apiList.students.unenrolled}`;
       console.log("[DEBUG] Fetching unenrolled students from:", url);
 
-      const response = await axios.get(url, {
+      const response = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

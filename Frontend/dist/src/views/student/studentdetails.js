@@ -8,20 +8,17 @@ import '@styles/react/pages/student.scss';
 // ** Third Party Components
 import ReactPaginate from 'react-paginate'
 import DataTable from 'react-data-table-component'
-import { ChevronDown, Share, Printer, FileText, File, Grid, Copy, Plus } from 'react-feather'
+import { ChevronDown} from 'react-feather'
 import {
   Card,
   CardHeader,
   CardTitle,
   Button,
-  UncontrolledButtonDropdown,
-  DropdownToggle,
-  DropdownMenu,
-  DropdownItem,
   Input,
   Label,
   Row,
-  Col
+  Col,
+  Spinner
 } from 'reactstrap'
 
 // ** Sample Table Columns
@@ -64,7 +61,6 @@ const columns = [
   },
   {
     name: 'Status',
-    // selector: row => row.status,
     cell: row => (
       <Badge color={row.status ? 'light-success' : 'light-danger'}>
         {row.status ? 'Active' : 'Inactive'}
@@ -179,7 +175,7 @@ const DataTableWithButtons = () => {
           <CardTitle tag="h4">Student Details</CardTitle>
           <div className='d-flex mt-md-0 mt-1'>
             <Button
-              color="success" className="student-btn ml-1" onClick={() => downloadCSV(searchValue.length ? filteredData :data)}>
+              color="success" className="student-btn ml-1" onClick={() => downloadCSV(searchValue.length ? filteredData : data)}>
               Export CSV
             </Button>
           </div>
@@ -200,9 +196,12 @@ const DataTableWithButtons = () => {
         </Row>
 
         {loading ? (
-          <p>Loading...</p>
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "200px" }}>
+            <Spinner color="primary" />
+          </div>
+
         ) : error ? (
-          <p className="text-danger">Error: {error}</p>
+          <p className="text-danger text-center">Error: {error}</p>
         ) : (
           <DataTable
             noHeader

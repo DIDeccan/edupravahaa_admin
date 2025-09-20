@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import apiList from "../../api.json";
+import api from "../utility/api"
+
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // --- Fetch Courses ---
@@ -11,14 +13,14 @@ export const fetchCourses = createAsyncThunk(
     const token = auth?.token || localStorage.getItem("access");
     try {
       const url = `${API_URL}${apiList.courses.coursesList}`;
-      const response = await axios.get(url, {
+      const response = await api.get(url, {
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
           "Content-Type": "application/json",
         },
       });
 
-      // ✅ return only the array of courses
+      // return only the array of courses
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -34,7 +36,7 @@ export const fetchCalculatePrice = createAsyncThunk(
     const token = auth?.token || localStorage.getItem("access");
     try {
       const url = `${API_URL}${apiList.calculator.price}`;
-      const response = await axios.post(
+      const response = await api.post(
         url,
         { course, original_price, discount_percent, final_price },
         {
@@ -61,7 +63,7 @@ const calculatorSlice = createSlice({
     loading: false,
     error: null,
     success: null,
-    courses: [], // ✅ store courses from API
+    courses: [], 
   },
   reducers: {
     setClassLevel: (state, action) => {
@@ -85,7 +87,7 @@ const calculatorSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchCourses.fulfilled, (state, action) => {
-        state.courses = action.payload; // ✅ only array of courses
+        state.courses = action.payload;
       })
       .addCase(fetchCourses.rejected, (state, action) => {
         state.error = action.payload;

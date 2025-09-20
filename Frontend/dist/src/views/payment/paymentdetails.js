@@ -17,7 +17,8 @@ import {
   Row,
   Col,
   Button,
-  Badge
+  Badge,
+  Spinner
 } from "reactstrap";
 
 const formatDateTime = (value) => {
@@ -325,21 +326,21 @@ const PaymentDetails = () => {
         </CardHeader>
 
         {/* Filter Form */}
-        <Row className="px-4 pt-3 justify-content-center">
-          <Col md="5" >
+        <Row className="px-4 pt-3 ps-2">
+          <Col md="6" >
             <Label>Start Date</Label>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
             {errors.startDate && <small className="text-danger">{errors.startDate}</small>}
           </Col>
-          <Col md="5">
+          <Col md="6">
             <Label>End Date</Label>
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
             {errors.endDate && <small className="text-danger">{errors.endDate}</small>}
           </Col>
         </Row>
 
-        <Row className="px-4 pt-3 justify-content-center">
-          <Col md="5" >
+        <Row className="px-4 pt-3 ps-2">
+          <Col md="6" >
             <Label>Course</Label>
             <Input type="select" value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)} required>
               <option value="" disabled>Select course</option>
@@ -355,7 +356,7 @@ const PaymentDetails = () => {
             </Input>
             {errors.selectedCourse && <small className="text-danger">{errors.selectedCourse}</small>}
           </Col>
-          <Col md="5">
+          <Col md="6">
             <Label>Status</Label>
             <Input type="select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} required>
               <option value="" disabled>Select status</option>
@@ -386,7 +387,9 @@ const PaymentDetails = () => {
         {showTable && (
           <>
             {loading ? (
-              <p className="p-2">Loading...</p>
+              <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "200px" }}>
+                <Spinner color="primary" />
+              </div>
             ) : error ? (
               <p className="p-2 text-danger">Error: {error}</p>
             ) : tableData && tableData.length > 0 ? (
@@ -424,7 +427,7 @@ const PaymentDetails = () => {
                 />
               </>
             ) : (
-              <p className="text-center p-2">No records found</p>
+              <p className="text-center p-2 text-danger">No records found</p>
             )}
           </>
         )}
