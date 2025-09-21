@@ -338,7 +338,7 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
     """Serializes teacher registration data with course assignments."""
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, required=True)
-    name = serializers.CharField(max_length=150, required=True, allow_blank=False)
+    name = serializers.CharField(max_length=150, required=True, allow_blank=False,trim_whitespace=False)
     course_assignments = TeacherCourseAssignmentSerializer(many=True, required=True)
     phone = serializers.CharField(source='phone_number', max_length=15, required=True, allow_blank=False)
     
@@ -384,14 +384,23 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Creates a teacher with course assignments and schedules."""
         course_assignments = validated_data.pop('course_assignments')
-        validated_data['first_name'], validated_data['last_name'] = validated_data.pop('name').split(' ', 1) if ' ' in validated_data['name'] else (validated_data['name'], '')
         
         try:
-            name = validated_data.pop('name')
+            # Handle name only once
+            full_name = validated_data.pop('name')
+            if " " in full_name:
+                first_name, last_name = full_name.split(" ", 1)
+            else:
+                first_name, last_name = full_name, ""
+
+            validated_data['first_name'] = first_name
+            validated_data['last_name'] = last_name
+            validated_data['username'] = full_name
+            #name = validated_data.pop('name')
             phone = validated_data.pop('phone_number')
             validated_data['phone_number'] = phone
-            validated_data['username'] = name
-            validated_data['first_name'] = name
+            #validated_data['username'] = name
+            #validated_data['first_name'] = name
             validated_data.pop('confirm_password')
             password = validated_data.pop('password')
             
