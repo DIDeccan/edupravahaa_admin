@@ -19,7 +19,7 @@ def parse_time_string(value):
 class ClassSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClassSession
-        fields = ['id', 'session_date', 'start_time', 'end_time', 'recording_url', 'is_active']
+        fields = ['id', 'session_date', 'start_time', 'end_time', 'recording', 'is_active']
         read_only_fields = ['is_active']
 
 

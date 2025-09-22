@@ -504,8 +504,8 @@ class ClassSessionUpdateView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Validate S3 URL if provided
-            if 'recording_url' in data and data['recording_url']:
-                s3_url = data['recording_url']
+            if 'recording' in data and data['recording']:
+                s3_url = data['recording']
                 if not s3_url.startswith('https://') or 's3' not in s3_url:
                     return Response({
                         'error': 'Invalid S3 URL format.',
