@@ -1,5 +1,5 @@
 // ** React Imports
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 // ** Custom Hooks
@@ -35,7 +35,8 @@ import {
   CardText,
   CardTitle,
   FormFeedback,
-  UncontrolledTooltip
+  UncontrolledTooltip,
+  Spinner
 } from 'reactstrap'
 
 // ** Illustrations Imports
@@ -64,8 +65,8 @@ const ToastContent = ({ t, name, role }) => {
 }
 
 const defaultValues = {
-  password: '1234',
-  loginEmail: 'gayithrichalapathi272@gmail.com'
+  password: '12345678',
+  loginEmail: 'admin@gmail.com'
 }
 
 const Login = () => {
@@ -74,6 +75,7 @@ const Login = () => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const ability = useContext(AbilityContext)
+  const [loading, setLoading] = useState(false)
   const {
     control,
     setError,
@@ -86,12 +88,14 @@ const Login = () => {
   const onSubmit = (data) => {
     if (Object.values(data).every(field => field.length > 0)) {
       console.log("clikc")
+      setLoading(true)
+
       dispatch(loginUser({ identifier: data.loginEmail, password: data.password }))
         .unwrap()
         .then(res => {
           // ✅ Only continue if access token is there
           if (res.access) {
-            
+
             // Call profile API
             dispatch(getProfile())
               .unwrap()
@@ -112,12 +116,14 @@ const Login = () => {
                   type: 'manual',
                   message: 'Failed to fetch profile. Try again.'
                 });
-              });
+              })
+              .finally(() => setLoading(false))
           } else {
             setError('loginEmail', {
               type: 'manual',
               message: 'Login failed: No access token'
             });
+            setLoading(false)
           }
         })
         .catch(err => {
@@ -125,6 +131,7 @@ const Login = () => {
             type: 'manual',
             message: err?.error || 'Login failed'
           });
+          setLoading(false)
         });
     } else {
       for (const key in data) {
@@ -141,6 +148,7 @@ const Login = () => {
 
   return (
     <div className='auth-wrapper auth-cover'>
+
       <Row className='auth-inner m-0'>
         <Link className='brand-logo' to='/' onClick={e => e.preventDefault()}>
           <svg viewBox='0 0 139 95' version='1.1' height='28'>
@@ -250,8 +258,15 @@ const Login = () => {
                   Remember Me
                 </Label>
               </div>
-              <Button type='submit' color='primary' block>
-                Sign in
+              <Button type='submit' color='primary' block disabled={loading}>
+                {loading ? (
+                  <>
+                    <Spinner size='sm' color='light' className='me-50' />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
               </Button>
             </Form>
             {/* <p className='text-center mt-2'>
