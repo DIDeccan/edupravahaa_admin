@@ -43,10 +43,10 @@ export const registerTeacher = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await dispatch(fetchTeachers());
-      return true;
+      // await dispatch(fetchTeachers());
+      // return true;
 
-      // return response.data;
+      return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -71,7 +71,7 @@ const teacherSlice = createSlice({
       .addCase(fetchTeachers.fulfilled, (state, action) => {
         state.loading = false;
         // console.log("Fetched Teachers:", action.payload);
-        state.list = action.payload.data;
+        state.list = action.payload.data ||[];
       })
       .addCase(fetchTeachers.rejected, (state, action) => {
         state.loading = false;

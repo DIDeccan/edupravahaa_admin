@@ -17,10 +17,17 @@ const toastMiddleware = () => (next) => (action) => {
 
   // Show error messages when thunk fails
   if (action.type.endsWith("/rejected")) {
-    const message =
+    let message =
       action.payload?.message ||
       action.error?.message ||
       null;
+    if (message && typeof message === "object") {
+      try {
+        message = Object.values(message).flat(Infinity).join("\n");
+      } catch {
+        message = JSON.stringify(message);
+      }
+    }
     if (message) {
       toast.error(message);
     }

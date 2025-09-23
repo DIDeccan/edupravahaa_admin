@@ -94,13 +94,13 @@ const Login = () => {
         .unwrap()
         .then(res => {
           // ✅ Only continue if access token is there
-          if (res.access) {
+          if (res.data.access) {
 
             // Call profile API
             dispatch(getProfile())
               .unwrap()
               .then(profile => {
-                const fullUser = { ...profile.data, accessToken: res.access, refreshToken: res.refresh };
+                const fullUser = { ...profile.data, accessToken: res.data.access, refreshToken: res.data.refresh };
                 console.log('Full User Data:', fullUser);
                 navigate(getHomeRouteForLoggedInUser(fullUser.role))
                 toast(t => (
