@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q,Count
+from django.db.models import Q, Count
 from rest_framework import serializers
-from edu_platform.models import Course, CourseSubscription, ClassSchedule,CoursePricing
-from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer, PaymentRecordSerializer,CoursePricingSerializer
+from edu_platform.models import Course, CourseSubscription, ClassSchedule, CoursePricing
+from edu_platform.serializers.course_serializers import CourseSerializer, PurchasedCoursesSerializer, CourseStudentCountSerializer, MyCoursesSerializer, PaymentRecordSerializer, CoursePricingSerializer
 from edu_platform.permissions.auth_permissions import IsTeacher, IsStudent, IsTeacherOrAdmin, IsAdmin
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
@@ -16,26 +16,44 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def get_error_message(serializer):
+def get_error_message(errors):
     """Extracts a specific error message from serializer errors."""
-    error_message = 'Invalid input data.'
-    for field in serializer.errors:
-        if isinstance(serializer.errors[field], dict) and 'error' in serializer.errors[field]:
-            return serializer.errors[field]['error']
-        elif isinstance(serializer.errors[field], list):
-            return serializer.errors[field][0]
-    if 'non_field_errors' in serializer.errors:
-        return serializer.errors['non_field_errors'][0]
-    if serializer.errors:
-        return list(serializer.errors.values())[0][0] if isinstance(list(serializer.errors.values())[0], list) else list(serializer.errors.values())[0]
-    return error_message
+    if isinstance(errors, dict):
+        for field, error in errors.items():
+            if field == 'non_field_errors':
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    return str(error[0])
+            else:
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    error_msg = str(error[0])
+                    field_name = field.replace('_', ' ').title()
+                    if error_msg == 'This field may not be blank.':
+                        return f"{field_name} cannot be empty."
+                    if error_msg == 'This field is required.':
+                        return f"{field_name} is required."
+                    if error_msg == 'Ensure this field has at least 8 characters.':
+                        return f"{field_name} must be at least 8 characters long."
+                    return f"{field_name}: {error_msg}"
+                elif isinstance(error, dict):
+                    return error.get('error', error.get('message', str(error)))
+                return f"{field.replace('_', ' ').title()}: {str(error)}"
+    elif isinstance(errors, list) and errors:
+        if isinstance(errors[0], dict):
+            return errors[0].get('error', errors[0].get('message', str(errors[0])))
+        return str(errors[0])
+    return 'Invalid input provided.'
 
 class BaseAPIView(APIView):
     def validate_serializer(self, serializer_class, data, context=None):
         serializer = serializer_class(data=data, context=context or {'request': self.request})
         if not serializer.is_valid():
             raise serializers.ValidationError({
-                'error': get_error_message(serializer),
+                'message': get_error_message(serializer.errors),
+                'message_type': 'error',
                 'status': status.HTTP_400_BAD_REQUEST
             })
         return serializer
@@ -44,15 +62,13 @@ class CourseListView(generics.ListAPIView):
     """Lists active courses with filtering for students."""
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated, IsTeacher | IsStudent | IsAdmin]
-    
+
     def get_queryset(self):
         """Filters courses based on user role, purchase status, and query parameters."""
         today = date.today()
-        # Start with active courses and apply upcoming batch filter for students
         queryset = Course.objects.filter(is_active=True)
         user = self.request.user
         if user.is_authenticated and user.role == 'student':
-            # Only include courses with upcoming batches
             queryset = queryset.filter(class_schedules__batch_start_date__gte=today).distinct()
             if user.has_purchased_courses:
                 purchased_course_ids = CourseSubscription.objects.filter(
@@ -80,6 +96,7 @@ class CourseListView(generics.ListAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Items(
@@ -111,7 +128,19 @@ class CourseListView(generics.ListAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            403: openapi.Response(
+                description="Forbidden",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -121,7 +150,8 @@ class CourseListView(generics.ListAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -134,12 +164,14 @@ class CourseListView(generics.ListAPIView):
             serializer = self.get_serializer(queryset, many=True)
             return Response({
                 'message': 'Courses retrieved successfully.',
+                'message_type': 'success',
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Course list error: {str(e)}")
             return Response({
-                'error': 'Failed to retrieve courses. Please try again.',
+                'message': 'Failed to retrieve courses. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -156,6 +188,7 @@ class AdminCourseCreateView(BaseAPIView, generics.CreateAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(type=openapi.TYPE_OBJECT)
                     }
                 )
@@ -165,7 +198,8 @@ class AdminCourseCreateView(BaseAPIView, generics.CreateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -175,7 +209,8 @@ class AdminCourseCreateView(BaseAPIView, generics.CreateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -185,7 +220,8 @@ class AdminCourseCreateView(BaseAPIView, generics.CreateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -195,28 +231,34 @@ class AdminCourseCreateView(BaseAPIView, generics.CreateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
             )
         }
     )
-
     def post(self, request, *args, **kwargs):
         try:
             serializer = self.validate_serializer(CourseSerializer, request.data)
             course = serializer.save()
             return Response({
                 'message': 'Course created successfully.',
+                'message_type': 'success',
                 'data': CourseSerializer(course, context={'request': request}).data
             }, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': e.detail.get('message', 'Invalid input data.'),
+                'message_type': 'error',
+                'status': e.detail.get('status', status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Course creation error: {str(e)}")
             return Response({
-                'error': 'Failed to create course. Please try again.',
+                'message': 'Failed to create course. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -235,6 +277,7 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(type=openapi.TYPE_OBJECT)
                     }
                 )
@@ -244,7 +287,8 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -254,7 +298,8 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -264,7 +309,19 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="Course not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -274,7 +331,8 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -289,14 +347,26 @@ class AdminCourseUpdateView(BaseAPIView, generics.UpdateAPIView):
             serializer.save()
             return Response({
                 'message': 'Course updated successfully.',
+                'message_type': 'success',
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
+        except Course.DoesNotExist:
+            return Response({
+                'message': 'Course not found.',
+                'message_type': 'error',
+                'status': status.HTTP_404_NOT_FOUND
+            }, status=status.HTTP_404_NOT_FOUND)
         except serializers.ValidationError as e:
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': e.detail.get('message', 'Invalid input data.'),
+                'message_type': 'error',
+                'status': e.detail.get('status', status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Course update error: {str(e)}")
             return Response({
-                'error': 'Failed to update course. Please try again.',
+                'message': 'Failed to update course. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -304,7 +374,7 @@ class MyCoursesView(generics.ListAPIView):
     """Lists purchased courses for students or assigned courses for teachers with their specific batch and schedule details."""
     serializer_class = MyCoursesSerializer
     permission_classes = [IsAuthenticated, IsStudent | IsTeacher]
-    
+
     def get_queryset(self):
         """Returns purchased courses for students or assigned courses for teachers."""
         user = self.request.user
@@ -329,6 +399,7 @@ class MyCoursesView(generics.ListAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Items(
@@ -380,7 +451,8 @@ class MyCoursesView(generics.ListAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -390,7 +462,8 @@ class MyCoursesView(generics.ListAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -400,14 +473,14 @@ class MyCoursesView(generics.ListAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
             )
         }
     )
-    
     def get(self, request, *args, **kwargs):
         try:
             queryset = self.get_queryset()
@@ -415,20 +488,63 @@ class MyCoursesView(generics.ListAPIView):
             message = 'Assigned courses retrieved successfully.' if request.user.role == 'teacher' else 'Purchased courses retrieved successfully.'
             return Response({
                 'message': message,
+                'message_type': 'success',
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Courses retrieval error for {request.user.role}: {str(e)}")
             return Response({
-                'error': 'Failed to retrieve courses. Please try again.',
+                'message': 'Failed to retrieve courses. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class CourseStudentCountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    @swagger_auto_schema(
+        operation_description="List courses with their enrolled student counts (Admin only)",
+        responses={
+            200: openapi.Response(
+                description="Course student counts retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Items(type=openapi.TYPE_OBJECT)
+                        )
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="No courses found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            )
+        }
+    )
     def get(self, request):
         try:
-        # Query to get courses with student counts
             courses = Course.objects.filter(
                 subscriptions__payment_status='completed',
                 subscriptions__is_active=True
@@ -437,20 +553,24 @@ class CourseStudentCountView(APIView):
             ).order_by('name')
 
             if not courses.exists():
-                return Response({"message": 'No courses found with enrolled students.','message_type':'error'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    'message': 'No courses found with enrolled students.',
+                    'message_type': 'error',
+                    'status': status.HTTP_404_NOT_FOUND
+                }, status=status.HTTP_404_NOT_FOUND)
 
-            # Serialize the data
             serializer = CourseStudentCountSerializer(courses, many=True)
             return Response({
-                "message": 'Course student counts retrieved successfully.',
-                "message_type":"success",
-                "data": serializer.data
+                'message': 'Course student counts retrieved successfully.',
+                'message_type': 'success',
+                'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"Course student count error: {str(e)}")
             return Response({
-                "message": 'An error occurred while retrieving course student counts.',
-                "message_type":"error",
-                "error": str(e)
+                'message': 'Failed to retrieve course student counts.',
+                'message_type': 'error',
+                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaymentFilter(filters.FilterSet):
@@ -463,42 +583,174 @@ class PaymentFilter(filters.FilterSet):
         model = CourseSubscription
         fields = ['start_date', 'end_date', 'course', 'status']
 
-
 class AllPaymentRecordsAPIView(generics.ListAPIView):
     queryset = CourseSubscription.objects.all().order_by('-payment_completed_at')
     serializer_class = PaymentRecordSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_class = PaymentFilter
 
+    @swagger_auto_schema(
+        operation_description="List all payment records with filtering (Admin only)",
+        responses={
+            200: openapi.Response(
+                description="Payment records retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                                'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                                'results': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT))
+                            }
+                        )
+                    }
+                )
+            ),
+            401: openapi.Response(
+                description="Unauthorized",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            403: openapi.Response(
+                description="Forbidden",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            )
+        }
+    )
     def list(self, request, *args, **kwargs):
         try:
             response = super().list(request, *args, **kwargs)
             return Response({
-                "message": "Payment records retrieved successfully.",
-                "message_type": "success",
-                "count": response.data["count"],
-                "next": response.data["next"],
-                "previous": response.data["previous"],
-                "results": response.data["results"],
+                'message': 'Payment records retrieved successfully.',
+                'message_type': 'success',
+                'data': {
+                    'count': response.data['count'],
+                    'next': response.data['next'],
+                    'previous': response.data['previous'],
+                    'results': response.data['results']
+                }
             }, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"Payment records retrieval error: {str(e)}")
             return Response({
-                "message": "Failed to retrieve payment records.",
-                "message_type": "error",
-                "error": str(e),
+                'message': 'Failed to retrieve payment records.',
+                'message_type': 'error',
+                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CoursePricingCreateAPIView(generics.CreateAPIView):
     serializer_class = CoursePricingSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
 
-    def create(self,request,*args,**kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-
-        return Response({
-            "message": "Course pricing created successfully",
-            "message_type": "success",
-            "data": serializer.data
-        }, status=status.HTTP_201_CREATED)
-    
+    @swagger_auto_schema(
+        operation_description="Create course pricing (Admin only)",
+        responses={
+            201: openapi.Response(
+                description="Course pricing created successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'data': openapi.Schema(type=openapi.TYPE_OBJECT)
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description="Invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            401: openapi.Response(
+                description="Unauthorized",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            403: openapi.Response(
+                description="Forbidden",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            )
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        try:
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                return Response({
+                    'message': get_error_message(serializer.errors),
+                    'message_type': 'error',
+                    'status': status.HTTP_400_BAD_REQUEST
+                }, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_create(serializer)
+            return Response({
+                'message': 'Course pricing created successfully.',
+                'message_type': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.error(f"Course pricing creation error: {str(e)}")
+            return Response({
+                'message': 'Failed to create course pricing. Please try again.',
+                'message_type': 'error',
+                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

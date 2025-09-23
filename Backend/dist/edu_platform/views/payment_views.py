@@ -1,7 +1,7 @@
-from rest_framework import views, status,generics
+from rest_framework import views, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated,IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from edu_platform.models import Course, CourseSubscription, CourseEnrollment
 from edu_platform.permissions.auth_permissions import IsStudent
-from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer,TransactionReportSerializer
+from edu_platform.serializers.payment_serializers import CreateOrderSerializer, VerifyPaymentSerializer, TransactionReportSerializer
 from io import BytesIO
 from django.http import HttpResponse
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
@@ -26,23 +26,44 @@ client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_S
 # Set up logging
 logger = logging.getLogger(__name__)
 
-def get_error_message(serializer):
+def get_error_message(errors):
     """Extracts a specific error message from serializer errors."""
-    errors = serializer.errors
-    if 'non_field_errors' in errors:
-        return errors['non_field_errors'][0]
-    for field, error in errors.items():
-        if isinstance(error, dict) and 'error' in error:
-            return error['error']
-        return error[0] if isinstance(error, list) else error
-    return 'Invalid input data.'
+    if isinstance(errors, dict):
+        for field, error in errors.items():
+            if field == 'non_field_errors':
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    return str(error[0])
+            else:
+                if isinstance(error, list) and error:
+                    if isinstance(error[0], dict):
+                        return error[0].get('error', error[0].get('message', str(error[0])))
+                    error_msg = str(error[0])
+                    field_name = field.replace('_', ' ').title()
+                    if error_msg == 'This field may not be blank.':
+                        return f"{field_name} cannot be empty."
+                    if error_msg == 'This field is required.':
+                        return f"{field_name} is required."
+                    if error_msg == 'Ensure this field has at least 8 characters.':
+                        return f"{field_name} must be at least 8 characters long."
+                    return f"{field_name}: {error_msg}"
+                elif isinstance(error, dict):
+                    return error.get('error', error.get('message', str(error)))
+                return f"{field.replace('_', ' ').title()}: {str(error)}"
+    elif isinstance(errors, list) and errors:
+        if isinstance(errors[0], dict):
+            return errors[0].get('error', errors[0].get('message', str(errors[0])))
+        return str(errors[0])
+    return 'Invalid input provided.'
 
 class BaseAPIView(views.APIView):
     def validate_serializer(self, serializer_class, data, context=None):
         serializer = serializer_class(data=data, context=context or {'request': self.request})
         if not serializer.is_valid():
             raise serializers.ValidationError({
-                'error': get_error_message(serializer),
+                'message': get_error_message(serializer.errors),
+                'message_type': 'error',
                 'status': status.HTTP_400_BAD_REQUEST
             })
         return serializer
@@ -60,6 +81,7 @@ class CreateOrderView(BaseAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(
                             type=openapi.TYPE_OBJECT,
                             properties={
@@ -79,7 +101,8 @@ class CreateOrderView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -89,7 +112,8 @@ class CreateOrderView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -99,7 +123,8 @@ class CreateOrderView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -109,7 +134,8 @@ class CreateOrderView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -188,6 +214,7 @@ class CreateOrderView(BaseAPIView):
 
             return Response({
                 'message': 'Order created successfully.',
+                'message_type': 'success',
                 'data': {
                     'order_id': order['id'],
                     'amount': order['amount'],
@@ -199,22 +226,29 @@ class CreateOrderView(BaseAPIView):
             }, status=status.HTTP_200_OK)
 
         except serializers.ValidationError as e:
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': e.detail.get('message', 'Invalid input data.'),
+                'message_type': 'error',
+                'status': e.detail.get('status', status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Course.DoesNotExist:
             return Response({
-                'error': 'Course not found or inactive.',
+                'message': 'Course not found or inactive.',
+                'message_type': 'error',
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         except razorpay.errors.BadRequestError as e:
             logger.error(f"Razorpay error creating order: {str(e)}")
             return Response({
-                'error': f'Payment gateway error: {str(e)}',
+                'message': f'Payment gateway error: {str(e)}',
+                'message_type': 'error',
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Unexpected error creating order: {str(e)}")
             return Response({
-                'error': 'Failed to create order. Please try again.',
+                'message': 'Failed to create order. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -231,6 +265,7 @@ class VerifyPaymentView(BaseAPIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'data': openapi.Schema(
                             type=openapi.TYPE_OBJECT,
                             properties={
@@ -247,7 +282,8 @@ class VerifyPaymentView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -257,7 +293,8 @@ class VerifyPaymentView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -267,7 +304,8 @@ class VerifyPaymentView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -277,7 +315,8 @@ class VerifyPaymentView(BaseAPIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
                         'status': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
@@ -299,6 +338,7 @@ class VerifyPaymentView(BaseAPIView):
                 logger.info(f"Payment already verified for subscription {subscription.id}, user {request.user.id}")
                 return Response({
                     'message': 'Payment already verified.',
+                    'message_type': 'success',
                     'data': {
                         'subscription_id': subscription.id,
                         'course_name': subscription.course.name,
@@ -323,7 +363,8 @@ class VerifyPaymentView(BaseAPIView):
                     subscription.payment_status = 'failed'
                     subscription.save()
                     return Response({
-                        'error': 'Invalid payment signature.',
+                        'message': 'Invalid payment signature.',
+                        'message_type': 'error',
                         'status': status.HTTP_400_BAD_REQUEST
                     }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -339,6 +380,7 @@ class VerifyPaymentView(BaseAPIView):
             logger.info(f"Payment verified for subscription {subscription.id}, user {request.user.id}, course {subscription.course.name}, batch {enrollment.batch}")
             return Response({
                 'message': 'Payment verified successfully.',
+                'message_type': 'success',
                 'data': {
                     'subscription_id': subscription.id,
                     'course_name': subscription.course.name,
@@ -347,39 +389,94 @@ class VerifyPaymentView(BaseAPIView):
             }, status=status.HTTP_200_OK)
 
         except serializers.ValidationError as e:
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': e.detail.get('message', 'Invalid input data.'),
+                'message_type': 'error',
+                'status': e.detail.get('status', status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except CourseEnrollment.DoesNotExist:
             logger.error(f"No enrollment found for subscription {subscription.id if 'subscription' in locals() else 'unknown'}")
             return Response({
-                'error': 'No enrollment found for this subscription.',
+                'message': 'No enrollment found for this subscription.',
+                'message_type': 'error',
                 'status': status.HTTP_400_BAD_REQUEST
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error updating subscription {subscription.id if 'subscription' in locals() else 'unknown'} for user {request.user.id}: {str(e)}")
             return Response({
-                'error': 'Failed to verify payment. Please try again.',
+                'message': 'Failed to verify payment. Please try again.',
+                'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class TransactionReportView(APIView):
-    permission_classes = [IsAdminUser]
-    
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @swagger_auto_schema(
+        operation_description="Retrieve the last 5 transactions (Admin only)",
+        responses={
+            200: openapi.Response(
+                description="Transactions retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Items(type=openapi.TYPE_OBJECT)
+                        )
+                    }
+                )
+            ),
+            401: openapi.Response(
+                description="Unauthorized",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            403: openapi.Response(
+                description="Forbidden",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error']),
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            )
+        }
+    )
     def get(self, request):
         try:
-            # Get the last 5 transactions, ordered by purchased_at (most recent first)
             transactions = CourseSubscription.objects.all().order_by('-purchased_at')[:5]
             serializer = TransactionReportSerializer(transactions, many=True)
-            response_data = {
-                "message": "Transactions retrieved successfully.",
-                "message_type": "success",
-                "data": serializer.data
-            }
-            return Response(response_data, status=status.HTTP_200_OK)
+            return Response({
+                'message': 'Transactions retrieved successfully.',
+                'message_type': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
         except Exception as e:
-            response_data = {
-                "message": f"Failed to retrieve transactions: {str(e)}",
-                "message_type": "error",
-                "data": []
-            }
-            return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)       
-        
+            logger.error(f"Transaction report error: {str(e)}")
+            return Response({
+                'message': f'Failed to retrieve transactions: {str(e)}',
+                'message_type': 'error',
+                'status': status.HTTP_500_INTERNAL_SERVER_ERROR
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
