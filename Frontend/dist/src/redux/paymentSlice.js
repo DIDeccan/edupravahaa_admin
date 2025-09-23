@@ -21,19 +21,21 @@ export const fetchPayments = createAsyncThunk(
           },
         }
       );
-      // Always return an array
-      if (response.data?.results) {
-        return response.data.results;
-      }
+      // // Always return an array
+      // if (response.data?.results) {
+      //   return response.data;
+      // }
 
-      // Some APIs wrap data differently
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
+      // // Some APIs wrap data differently
+      // if (Array.isArray(response.data)) {
+      //   return response.data;
+      // }
 
-      return [];
+       return response.data;
+
+      // return [];
     } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
+      return rejectWithValue(err.response?.data?.message ||err.response?.data || err.message);
     }
   }
 );
@@ -54,11 +56,39 @@ const paymentSlice = createSlice({
       })
       .addCase(fetchPayments.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload; 
+        
+        const payload = action.payload;
+
+        // Normalize possible payload shapes into an array:
+        let list = [];
+
+        if (!payload) {
+          list = [];
+        } else if (Array.isArray(payload)) {
+          // API returned an array directly
+          list = payload;
+        } else if (Array.isArray(payload.data)) {
+          // payload.data is array
+          list = payload.data;
+        } else if (Array.isArray(payload.results)) {
+          // payload.results is array
+          list = payload.results;
+        } else if (Array.isArray(payload.data?.results)) {
+          // payload.data.results (pagination)
+          list = payload.data.results;
+        } else if (Array.isArray(payload.data?.items)) {
+          // payload.data.items (other naming)
+          list = payload.data.items;
+        } else {
+          // fallback empty
+          list = [];
+        }
+
+        state.list = list;
       })
       .addCase(fetchPayments.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || action.error?.message;
       });
   },
 });

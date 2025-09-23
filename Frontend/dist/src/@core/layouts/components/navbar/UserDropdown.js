@@ -10,7 +10,7 @@ import { isUserLoggedIn } from '@utils'
 
 // ** Store & Actions
 import { useDispatch } from 'react-redux'
-import { logoutUser } from '@store/authentication'
+
 
 // ** Third Party Components
 import { User, Mail, CheckSquare, MessageSquare, Settings, CreditCard, HelpCircle, Power } from 'react-feather'
@@ -20,6 +20,7 @@ import { UncontrolledDropdown, DropdownMenu, DropdownToggle, DropdownItem } from
 
 // ** Default Avatar Image
 import defaultAvatar from '@src/assets/images/portrait/small/avatar-s-11.jpg'
+import { logoutUser } from '../../../../redux/authentication'
 
 const UserDropdown = () => {
   // ** Store Vars

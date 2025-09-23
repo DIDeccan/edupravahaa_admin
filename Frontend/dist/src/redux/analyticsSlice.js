@@ -18,7 +18,7 @@ export const fetchUsersByCourse = createAsyncThunk(
       const response = await api.get(`${API_URL}${apiList.barchart.studentCount}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
 
       return response.data;
     } catch (err) {
@@ -74,7 +74,8 @@ export const fetchUnenrolledStudents = createAsyncThunk(
       if (!token) return rejectWithValue("No auth token found");
 
       const url = `${API_URL}${apiList.students.unenrolled}`;
-      console.log("[DEBUG] Fetching unenrolled students from:", url);
+      // console.log("[DEBUG] Fetching unenrolled students from:", url);
+    
 
       const response = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -82,7 +83,7 @@ export const fetchUnenrolledStudents = createAsyncThunk(
 
       return response.data;
     } catch (err) {
-      console.error("[ERROR] fetchUnenrolledStudents:", err);
+      // console.error("[ERROR] fetchUnenrolledStudents:", err);
       return rejectWithValue(err.response?.data?.detail || err.message);
     }
   }
@@ -121,10 +122,15 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchUsersByCourse.fulfilled, (state, action) => {
         state.loading = false;
-       state.studentEnrollList = action.payload.data || action.payload;
-      // .addCase(fetchUsersByCourse.fulfilled, (state, action) => {
-      //   state.studentEnrollList = action.payload.data || []; // ✅ just the array
-      
+        // Normalization: pick correct array from payload
+        if (Array.isArray(action.payload)) {
+          state.studentEnrollList = action.payload;
+        } else if (Array.isArray(action.payload?.data)) {
+          state.studentEnrollList = action.payload.data;
+        } else {
+          state.studentEnrollList = [];
+        }
+
       })
       .addCase(fetchUsersByCourse.rejected, (state, action) => {
         state.loading = false;
@@ -139,7 +145,15 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchTransactionsReport.fulfilled, (state, action) => {
         state.loadingTransactions = false;
-        state.transactions = action.payload.data || action.payload;
+        if (Array.isArray(action.payload)) {
+          state.transactions = action.payload;
+        } else if (Array.isArray(action.payload?.data)) {
+          state.transactions = action.payload.data;
+        } else if (Array.isArray(action.payload?.results)) {
+          state.transactions = action.payload.results;
+        } else {
+          state.transactions = [];
+        }
       })
       .addCase(fetchTransactionsReport.rejected, (state, action) => {
         state.loadingTransactions = false;
@@ -154,7 +168,17 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchUsersByStatus.fulfilled, (state, action) => {
         state.loadingUsersByStatus = false;
-        state.usersByStatus = action.payload.data || action.payload;
+        if (Array.isArray(action.payload)) {
+          state.usersByStatus = action.payload;
+        } else if (Array.isArray(action.payload?.data)) {
+          state.usersByStatus = action.payload.data;
+        } else if (action.payload?.data && typeof action.payload.data === "object") {
+          state.usersByStatus = action.payload.data; // keep object for charts
+        } else if (action.payload && typeof action.payload === "object") {
+          state.usersByStatus = action.payload;
+        } else {
+          state.usersByStatus = [];
+        }
       })
       .addCase(fetchUsersByStatus.rejected, (state, action) => {
         state.loadingUsersByStatus = false;
@@ -169,7 +193,13 @@ const analyticsSlice = createSlice({
       })
       .addCase(fetchUnenrolledStudents.fulfilled, (state, action) => {
         state.loadingUnenrolled = false;
-        state.unenrolledStudents = action.payload;
+        if (Array.isArray(action.payload)) {
+          state.unenrolledStudents = action.payload;
+        } else if (Array.isArray(action.payload?.data)) {
+          state.unenrolledStudents = action.payload.data;
+        } else {
+          state.unenrolledStudents = [];
+        }
       })
       .addCase(fetchUnenrolledStudents.rejected, (state, action) => {
         state.loadingUnenrolled = false;

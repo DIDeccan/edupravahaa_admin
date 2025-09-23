@@ -53,7 +53,7 @@ const UsersStatusPieChart = () => {
         ) : series.length === 0 ? (
           <p>No data available.</p>
         ) : (
-          <Chart options={options} series={series} type="pie" height={400} />
+          <Chart options={options} series={series} type="pie" height={450} />
         )}
       </CardBody>
     </Card>

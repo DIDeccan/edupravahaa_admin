@@ -27,6 +27,7 @@ import {
   Spinner
 } from 'reactstrap'
 
+
 // ** Table Columns
 const columns = [
   {
@@ -107,6 +108,8 @@ const TeacherDetails = () => {
         (item.subject && item.subject.toLowerCase().includes(value.toLowerCase()))
       )
       setFilteredData(updatedData)
+    }else{
+      setFilteredData([])
     }
   }
 

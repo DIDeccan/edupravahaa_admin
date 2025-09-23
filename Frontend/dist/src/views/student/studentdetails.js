@@ -8,7 +8,7 @@ import '@styles/react/pages/student.scss';
 // ** Third Party Components
 import ReactPaginate from 'react-paginate'
 import DataTable from 'react-data-table-component'
-import { ChevronDown} from 'react-feather'
+import { ChevronDown } from 'react-feather'
 import {
   Card,
   CardHeader,
@@ -199,10 +199,15 @@ const DataTableWithButtons = () => {
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "200px" }}>
             <Spinner color="primary" />
           </div>
-
         ) : error ? (
-          <p className="text-danger text-center">Error: {error}</p>
-        ) : (
+          <p className="text-danger text-center">
+            {typeof error === "string"
+              ? error
+              : typeof error === "object" && error.message
+                ? error.message
+                : JSON.stringify(error)}
+          </p>
+        ) : data && data.length > 0 ? (
           <DataTable
             noHeader
             pagination
@@ -217,6 +222,8 @@ const DataTableWithButtons = () => {
             selectableRowsComponent={BootstrapCheckbox}
 
           />
+        ) : (
+          <p className="text-center p-2 text-danger"> {data?.message || "No records found"}</p>
         )}
       </Card>
     </Fragment>

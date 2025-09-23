@@ -43,10 +43,9 @@ export const logoutUser = createAsyncThunk(
       const { auth } = getState();
       const refreshToken = auth.refreshToken;
       const accessToken = auth.token;
-      // console.log("acc",accessToken)
  
       const response = await api.post(
-        API_URL + apiList.auth.logout,
+        apiList.auth.logout,
         { refresh: refreshToken },
         {
           headers: {
