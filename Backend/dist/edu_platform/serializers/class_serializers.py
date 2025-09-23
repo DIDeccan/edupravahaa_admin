@@ -13,14 +13,24 @@ def parse_time_string(value):
     try:
         return datetime.strptime(value, "%I:%M %p").time()
     except Exception:
-        raise serializers.ValidationError(f"Invalid time format: '{value}'. Use format like '4:00 PM'.")
-
+        raise serializers.ValidationError({
+            'message': f"Invalid time format: '{value}'. Use format like '4:00 PM'.",
+            'message_type': 'error'
+        })
 
 class ClassSessionSerializer(serializers.ModelSerializer):
+    recording = serializers.SerializerMethodField()
     class Meta:
         model = ClassSession
         fields = ['id', 'session_date', 'start_time', 'end_time', 'recording', 'is_active']
         read_only_fields = ['is_active']
+
+
+    def get_recording(self, obj):
+        request = self.context.get("request")
+        if obj.recording and hasattr(obj.recording, "url"):
+            return request.build_absolute_uri(obj.recording.url) if request else obj.recording.url
+        return None
 
 
 class BatchDetailSerializer(serializers.ModelSerializer):
@@ -52,13 +62,13 @@ class CourseSessionSerializer(serializers.ModelSerializer):
             schedules = ClassSchedule.objects.filter(course=obj, teacher=request.user)
         elif request.user.is_student:
             schedules = ClassSchedule.objects.filter(
-            course=obj,
-            batch__in=CourseEnrollment.objects.filter(
-                student=request.user,
                 course=obj,
-                subscription__payment_status='completed'
-            ).values('batch')
-        )
+                batch__in=CourseEnrollment.objects.filter(
+                    student=request.user,
+                    course=obj,
+                    subscription__payment_status='completed'
+                ).values('batch')
+            )
         else:
             schedules = ClassSchedule.objects.none()
 
@@ -137,7 +147,10 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
             teacher = User.objects.get(id=value, role='teacher')
             return value
         except User.DoesNotExist:
-            raise serializers.ValidationError({"error": f"Teacher with ID {value} not found or not a teacher."})
+            raise serializers.ValidationError({
+                'message': f"Teacher with ID {value} not found or not a teacher.",
+                'message_type': 'error'
+            })
 
     def validate_course_id(self, value):
         """Ensures the course exists and is active."""
@@ -145,29 +158,45 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
             course = Course.objects.get(id=value, is_active=True)
             return value
         except Course.DoesNotExist:
-            raise serializers.ValidationError({"error": f"Course with ID {value} not found or inactive."})
+            raise serializers.ValidationError({
+                'message': f"Course with ID {value} not found or inactive.",
+                'message_type': 'error'
+            })
 
     def validate_batches(self, value):
         """Ensures batches are valid and unique."""
         valid_batches = ['weekdays', 'weekends']
         if not all(batch in valid_batches for batch in value):
             raise serializers.ValidationError({
-                'error': f"Batches must be one or more of: {', '.join(valid_batches)}."
+                'message': f"Batches must be one or more of: {', '.join(valid_batches)}.",
+                'message_type': 'error'
             })
         if len(value) != len(set(value)):
-            raise serializers.ValidationError({"error": "Duplicate batches are not allowed."})
+            raise serializers.ValidationError({
+                'message': "Duplicate batches are not allowed.",
+                'message_type': 'error'
+            })
         return value
 
     def validate(self, attrs):
-        """Ensures required fields based on batches."""
+        """Ensures required fields based on batches and checks single course per teacher."""
         batches = attrs.get('batches', [])
+        teacher_id = attrs.get('teacher_id')
+        course_id = attrs.get('course_id')
         errors = {}
 
+        # Check if teacher is already assigned to a different course
+        teacher = User.objects.get(id=teacher_id, role='teacher')
+        existing_schedules = ClassSchedule.objects.filter(teacher=teacher)
+        if existing_schedules.exists() and existing_schedules.first().course.id != course_id:
+            errors['teacher_id'] = f'Teacher "{teacher.username}" is already assigned to another course (Course ID {existing_schedules.first().course.id}). A teacher can only be assigned to one course.'
+
+        # Validate required fields for batches
         if 'weekdays' in batches:
             required_fields = ['weekdays_start_date', 'weekdays_end_date', 'weekdays_start', 'weekdays_end']
             for field in required_fields:
                 if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekdays' batch."
+                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekdays' batch."
             if 'weekdays_start_date' in attrs and 'weekdays_end_date' in attrs:
                 if attrs['weekdays_start_date'] > attrs['weekdays_end_date']:
                     errors['weekdays_end_date'] = "End date must be after start date."
@@ -180,7 +209,7 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
             required_fields = ['weekend_start_date', 'weekend_end_date']
             for field in required_fields:
                 if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekends' batch."
+                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekends' batch."
             if 'weekend_start_date' in attrs and 'weekend_end_date' in attrs:
                 if attrs['weekend_start_date'] > attrs['weekend_end_date']:
                     errors['weekend_end_date'] = "End date must be after start date."
@@ -190,7 +219,10 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
                 errors['weekend_times'] = "At least Saturday or Sunday timings must be provided."
 
         if errors:
-            raise serializers.ValidationError(errors)
+            raise serializers.ValidationError({
+                'message': errors,
+                'message_type': 'error'
+            })
 
         return attrs
 
@@ -209,7 +241,8 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
                     raise ValueError("End time must be after start time.")
             except ValueError as e:
                 raise serializers.ValidationError({
-                    'error': f"Invalid time format or logic for {schedule['type']}: {str(e)}."
+                    'message': f"Invalid time format or logic for {schedule['type']}: {str(e)}.",
+                    'message_type': 'error'
                 })
 
             current_date = start_date
@@ -227,7 +260,8 @@ class ClassScheduleAssignmentSerializer(serializers.Serializer):
                     if overlapping_sessions.exists():
                         conflict_session = overlapping_sessions.first()
                         raise serializers.ValidationError({
-                            'error': f"Teacher has a conflicting session on {current_date.strftime('%Y-%m-%d')} from {start_time_str} to {end_time_str} (existing: {conflict_session.start_time} to {conflict_session.end_time}). Timing must differ on the same date."
+                            'message': f"Teacher has a conflicting session on {current_date.strftime('%Y-%m-%d')} from {start_time_str} to {end_time_str} (existing: {conflict_session.start_time} to {conflict_session.end_time}). Timing must differ on the same date.",
+                            'message_type': 'error'
                         })
                 current_date += timedelta(days=1)
 
@@ -281,27 +315,52 @@ class ClassScheduleSerializer(serializers.ModelSerializer):
             course = Course.objects.get(id=value, is_active=True)
             return value
         except Course.DoesNotExist:
-            raise serializers.ValidationError({'error': 'Course not found or inactive.'})
+            raise serializers.ValidationError({
+                'message': f"Course with ID {value} not found or inactive.",
+                'message_type': 'error'
+            })
 
     def validate_batch(self, value):
         """Ensures batch is valid."""
         valid_batches = ['weekdays', 'weekends']
         if value not in valid_batches:
             raise serializers.ValidationError({
-                'error': f"Batch must be one of: {', '.join(valid_batches)}."
+                'message': f"Batch must be one of: {', '.join(valid_batches)}.",
+                'message_type': 'error'
             })
         return value
 
     def validate(self, attrs):
-        """Validates date/time fields for single batch creation."""
+        """Validates date/time fields for single batch creation and checks single course per teacher."""
         batch = attrs.get('batch')
+        teacher_id = attrs.get('teacher_id')
+        course_id = attrs.get('course_id')
         errors = {}
 
+        # For single batch creation, validate teacher and course constraints
+        if not attrs.get('batch_assignment'):
+            if teacher_id:
+                try:
+                    teacher = User.objects.get(id=teacher_id, role='teacher')
+                except User.DoesNotExist:
+                    errors['teacher_id'] = f"Teacher with ID {teacher_id} not found or not a teacher."
+            else:
+                teacher = self.context['request'].user
+                if not teacher.role == 'teacher':
+                    errors['teacher_id'] = "User must be a teacher."
+
+            # Check if teacher is already assigned to a different course
+            if 'teacher_id' not in errors:
+                existing_schedules = ClassSchedule.objects.filter(teacher=teacher)
+                if existing_schedules.exists() and existing_schedules.first().course.id != course_id:
+                    errors['teacher_id'] = f'Teacher "{teacher.username}" is already assigned to another course (Course ID {existing_schedules.first().course.id}). A teacher can only be assigned to one course.'
+
+        # Validate date/time fields for single batch
         if batch == 'weekdays':
             required_fields = ['weekdays_start_date', 'weekdays_end_date', 'weekdays_start', 'weekdays_end']
             for field in required_fields:
                 if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekdays' batch."
+                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekdays' batch."
             if 'weekdays_start_date' in attrs and 'weekdays_end_date' in attrs:
                 if attrs['weekdays_start_date'] > attrs['weekdays_end_date']:
                     errors['weekdays_end_date'] = "End date must be after start date."
@@ -314,7 +373,7 @@ class ClassScheduleSerializer(serializers.ModelSerializer):
             required_fields = ['weekend_start_date', 'weekend_end_date']
             for field in required_fields:
                 if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekends' batch."
+                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekends' batch."
             if 'weekend_start_date' in attrs and 'weekend_end_date' in attrs:
                 if attrs['weekend_start_date'] > attrs['weekend_end_date']:
                     errors['weekend_end_date'] = "End date must be after start date."
@@ -324,7 +383,10 @@ class ClassScheduleSerializer(serializers.ModelSerializer):
                 errors['weekend_times'] = "At least Saturday or Sunday timings must be provided."
 
         if errors:
-            raise serializers.ValidationError(errors)
+            raise serializers.ValidationError({
+                'message': errors,
+                'message_type': 'error'
+            })
 
         return attrs
 
@@ -336,170 +398,212 @@ class ClassScheduleSerializer(serializers.ModelSerializer):
         course = Course.objects.get(id=course_id)
         batch = validated_data.pop('batch', None)
 
-        if batch_assignment:
-            # Multiple batch assignment
-            teacher = User.objects.get(id=batch_assignment['teacher_id'], role='teacher')
-            batches = batch_assignment['batches']
-            schedules = []
+        try:
+            if batch_assignment:
+                # Multiple batch assignment
+                teacher = User.objects.get(id=batch_assignment['teacher_id'], role='teacher')
+                batches = batch_assignment['batches']
+                schedules = []
 
-            if 'weekdays' in batches:
-                start_date = batch_assignment['weekdays_start_date']
-                end_date = batch_assignment['weekdays_end_date']
-                days = batch_assignment['weekdays_days'] or ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-                start_time = batch_assignment['weekdays_start']
-                end_time = batch_assignment['weekdays_end']
-                schedules.append({
-                    'type': 'weekdays',
-                    'batch': 'weekdays',
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'days': days,
-                    'start_time': start_time,
-                    'end_time': end_time
-                })
+                # Ensure course is not assigned to another teacher
+                existing_schedules = ClassSchedule.objects.filter(course=course)
+                if existing_schedules.exists():
+                    existing_teacher = existing_schedules.first().teacher
+                    if existing_teacher != teacher:
+                        raise serializers.ValidationError({
+                            'message': f'Course {course.id} is already assigned to teacher "{existing_teacher.username}". A course can only be assigned to one teacher.',
+                            'message_type': 'error'
+                        })
 
-            if 'weekends' in batches:
-                start_date = batch_assignment['weekend_start_date']
-                end_date = batch_assignment['weekend_end_date']
-                weekend_days = {}
-                if batch_assignment.get('saturday_start') and batch_assignment.get('saturday_end'):
-                    weekend_days['Saturday'] = (batch_assignment['saturday_start'], batch_assignment['saturday_end'])
-                if batch_assignment.get('sunday_start') and batch_assignment.get('sunday_end'):
-                    weekend_days['Sunday'] = (batch_assignment['sunday_start'], batch_assignment['sunday_end'])
-                for day, (start_time, end_time) in weekend_days.items():
+                if 'weekdays' in batches:
+                    start_date = batch_assignment['weekdays_start_date']
+                    end_date = batch_assignment['weekdays_end_date']
+                    days = batch_assignment['weekdays_days'] or ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+                    start_time = batch_assignment['weekdays_start']
+                    end_time = batch_assignment['weekdays_end']
                     schedules.append({
-                        'type': 'weekends',
-                        'batch': 'weekends',
+                        'type': 'weekdays',
+                        'batch': 'weekdays',
                         'start_date': start_date,
                         'end_date': end_date,
-                        'days': [day],
+                        'days': days,
                         'start_time': start_time,
                         'end_time': end_time
                     })
 
-            # Validate conflicts
-            assignment_serializer = ClassScheduleAssignmentSerializer(data=batch_assignment)
-            if not assignment_serializer.is_valid():
-                raise serializers.ValidationError(assignment_serializer.errors)
-            assignment_serializer.validate_session_conflicts(teacher, course_id, schedules)
+                if 'weekends' in batches:
+                    start_date = batch_assignment['weekend_start_date']
+                    end_date = batch_assignment['weekend_end_date']
+                    weekend_days = {}
+                    if batch_assignment.get('saturday_start') and batch_assignment.get('saturday_end'):
+                        weekend_days['Saturday'] = (batch_assignment['saturday_start'], batch_assignment['saturday_end'])
+                    if batch_assignment.get('sunday_start') and batch_assignment.get('sunday_end'):
+                        weekend_days['Sunday'] = (batch_assignment['sunday_start'], batch_assignment['sunday_end'])
+                    for day, (start_time, end_time) in weekend_days.items():
+                        schedules.append({
+                            'type': 'weekends',
+                            'batch': 'weekends',
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'days': [day],
+                            'start_time': start_time,
+                            'end_time': end_time
+                        })
 
-            # Create schedules and sessions
-            created_schedules = []
-            for schedule in schedules:
-                # Allow same batch as long as timings don’t conflict
-                existing = ClassSchedule.objects.filter(course=course, teacher=teacher, batch=schedule['batch']).first()
-                if existing:
-                    logger.info(f"Teacher {teacher.email} already has a '{schedule['batch']}' batch, checking conflicts only.")
+                # Validate batch assignment data
+                assignment_serializer = ClassScheduleAssignmentSerializer(data=batch_assignment)
+                if not assignment_serializer.is_valid():
+                    raise serializers.ValidationError({
+                        'message': assignment_serializer.errors,
+                        'message_type': 'error'
+                    })
+                # Validate session conflicts (commented out as per TeacherCreateSerializer)
+                # assignment_serializer.validate_session_conflicts(teacher, course_id, schedules)
 
-                class_schedule = ClassSchedule.objects.create(
-                    course=course,
-                    teacher=teacher,
-                    batch=schedule['batch'],
-                    batch_start_date=schedule['start_date'],
-                    batch_end_date=schedule['end_date']
-                )
-                created_schedules.append(class_schedule)
+                # Create schedules and sessions
+                created_schedules = []
+                for schedule in schedules:
+                    # Allow same batch as long as timings don’t conflict (checked if validate_session_conflicts is enabled)
+                    existing = ClassSchedule.objects.filter(course=course, teacher=teacher, batch=schedule['batch']).first()
+                    if existing:
+                        logger.info(f"Teacher {teacher.email} already has a '{schedule['batch']}' batch, checking conflicts only.")
 
-                # Create sessions (recurring for all matching days)
-                current_date = schedule['start_date']
-                start_time = parse_time_string(schedule['start_time'])
-                end_time = parse_time_string(schedule['end_time'])
-                while current_date <= schedule['end_date']:
-                    day_name = current_date.strftime('%A')
-                    if day_name in schedule['days']:
-                        session_start = timezone.make_aware(datetime.combine(current_date, start_time))
-                        session_end = timezone.make_aware(datetime.combine(current_date, end_time))
-                        ClassSession.objects.create(
-                            schedule=class_schedule,
-                            session_date=current_date,
-                            start_time=session_start,
-                            end_time=session_end
-                        )
-                    current_date += timedelta(days=1)
+                    class_schedule = ClassSchedule.objects.create(
+                        course=course,
+                        teacher=teacher,
+                        batch=schedule['batch'],
+                        batch_start_date=schedule['start_date'],
+                        batch_end_date=schedule['end_date']
+                    )
+                    created_schedules.append(class_schedule)
 
-            return {'schedules': created_schedules}
-        else:
-            # Single batch creation
-            if teacher_id:
-                teacher = User.objects.get(id=teacher_id, role='teacher')
+                    # Create sessions (recurring for all matching days)
+                    current_date = schedule['start_date']
+                    start_time = parse_time_string(schedule['start_time'])
+                    end_time = parse_time_string(schedule['end_time'])
+                    while current_date <= schedule['end_date']:
+                        day_name = current_date.strftime('%A')
+                        if day_name in schedule['days']:
+                            session_start = timezone.make_aware(datetime.combine(current_date, start_time))
+                            session_end = timezone.make_aware(datetime.combine(current_date, end_time))
+                            ClassSession.objects.create(
+                                schedule=class_schedule,
+                                session_date=current_date,
+                                start_time=session_start,
+                                end_time=session_end
+                            )
+                        current_date += timedelta(days=1)
+
+                return {'schedules': created_schedules}
             else:
-                teacher = self.context['request'].user
-            if not teacher.role == 'teacher':
-                raise serializers.ValidationError({'error': 'User must be a teacher.'})
+                # Single batch creation
+                if teacher_id:
+                    teacher = User.objects.get(id=teacher_id, role='teacher')
+                else:
+                    teacher = self.context['request'].user
+                    if not teacher.role == 'teacher':
+                        raise serializers.ValidationError({
+                            'message': 'User must be a teacher.',
+                            'message_type': 'error'
+                        })
 
-            # Prepare schedule for validation
-            schedules = []
-            if batch == 'weekdays':
-                start_date = validated_data['weekdays_start_date']
-                end_date = validated_data['weekdays_end_date']
-                days = validated_data['weekdays_days'] or ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-                start_time = validated_data['weekdays_start']
-                end_time = validated_data['weekdays_end']
-                schedules.append({
-                    'type': 'weekdays',
-                    'batch': batch,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'days': days,
-                    'start_time': start_time,
-                    'end_time': end_time
-                })
-            elif batch == 'weekends':
-                start_date = validated_data['weekend_start_date']
-                end_date = validated_data['weekend_end_date']
-                weekend_days = {}
-                if validated_data.get('saturday_start') and validated_data.get('saturday_end'):
-                    weekend_days['Saturday'] = (validated_data['saturday_start'], validated_data['saturday_end'])
-                if validated_data.get('sunday_start') and validated_data.get('sunday_end'):
-                    weekend_days['Sunday'] = (validated_data['sunday_start'], validated_data['sunday_end'])
-                for day, (start_time, end_time) in weekend_days.items():
+                # Ensure course is not assigned to another teacher
+                existing_schedules = ClassSchedule.objects.filter(course=course)
+                if existing_schedules.exists():
+                    existing_teacher = existing_schedules.first().teacher
+                    if existing_teacher != teacher:
+                        raise serializers.ValidationError({
+                            'message': f'Course {course.id} is already assigned to teacher "{existing_teacher.username}". A course can only be assigned to one teacher.',
+                            'message_type': 'error'
+                        })
+
+                # Prepare schedule for validation
+                schedules = []
+                if batch == 'weekdays':
+                    start_date = validated_data['weekdays_start_date']
+                    end_date = validated_data['weekdays_end_date']
+                    days = validated_data['weekdays_days'] or ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+                    start_time = validated_data['weekdays_start']
+                    end_time = validated_data['weekdays_end']
                     schedules.append({
-                        'type': 'weekends',
+                        'type': 'weekdays',
                         'batch': batch,
                         'start_date': start_date,
                         'end_date': end_date,
-                        'days': [day],
+                        'days': days,
                         'start_time': start_time,
                         'end_time': end_time
                     })
+                elif batch == 'weekends':
+                    start_date = validated_data['weekend_start_date']
+                    end_date = validated_data['weekend_end_date']
+                    weekend_days = {}
+                    if validated_data.get('saturday_start') and validated_data.get('saturday_end'):
+                        weekend_days['Saturday'] = (validated_data['saturday_start'], validated_data['saturday_end'])
+                    if validated_data.get('sunday_start') and validated_data.get('sunday_end'):
+                        weekend_days['Sunday'] = (validated_data['sunday_start'], validated_data['sunday_end'])
+                    for day, (start_time, end_time) in weekend_days.items():
+                        schedules.append({
+                            'type': 'weekends',
+                            'batch': batch,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'days': [day],
+                            'start_time': start_time,
+                            'end_time': end_time
+                        })
 
-            # Validate conflicts
-            assignment_data = {
-                'teacher_id': teacher.id,
-                'course_id': course_id,
-                'batches': [batch],
-                **{k: v for k, v in validated_data.items() if k in ['weekdays_start_date', 'weekdays_end_date', 'weekdays_days', 'weekdays_start', 'weekdays_end', 'weekend_start_date', 'weekend_end_date', 'saturday_start', 'saturday_end', 'sunday_start', 'sunday_end']}
-            }
-            assignment_serializer = ClassScheduleAssignmentSerializer(data=assignment_data)
-            if not assignment_serializer.is_valid():
-                raise serializers.ValidationError(assignment_serializer.errors)
-            assignment_serializer.validate_session_conflicts(teacher, course_id, schedules)
+                # Validate assignment data
+                assignment_data = {
+                    'teacher_id': teacher.id,
+                    'course_id': course_id,
+                    'batches': [batch],
+                    **{k: v for k, v in validated_data.items() if k in ['weekdays_start_date', 'weekdays_end_date', 'weekdays_days', 'weekdays_start', 'weekdays_end', 'weekend_start_date', 'weekend_end_date', 'saturday_start', 'saturday_end', 'sunday_start', 'sunday_end']}
+                }
+                assignment_serializer = ClassScheduleAssignmentSerializer(data=assignment_data)
+                if not assignment_serializer.is_valid():
+                    raise serializers.ValidationError({
+                        'message': assignment_serializer.errors,
+                        'message_type': 'error'
+                    })
+                # Validate session conflicts (commented out as per TeacherCreateSerializer)
+                # assignment_serializer.validate_session_conflicts(teacher, course_id, schedules)
 
-            # Create ClassSchedule
-            class_schedule = ClassSchedule.objects.create(
-                course=course,
-                teacher=teacher,
-                batch=batch,
-                batch_start_date=validated_data.get('weekdays_start_date') or validated_data.get('weekend_start_date'),
-                batch_end_date=validated_data.get('weekdays_end_date') or validated_data.get('weekend_end_date')
-            )
+                # Create ClassSchedule
+                class_schedule = ClassSchedule.objects.create(
+                    course=course,
+                    teacher=teacher,
+                    batch=batch,
+                    batch_start_date=validated_data.get('weekdays_start_date') or validated_data.get('weekend_start_date'),
+                    batch_end_date=validated_data.get('weekdays_end_date') or validated_data.get('weekend_end_date')
+                )
 
-            # Create sessions (recurring for all matching days)
-            for schedule in schedules:
-                current_date = schedule['start_date']
-                start_time = parse_time_string(schedule['start_time'])
-                end_time = parse_time_string(schedule['end_time'])
-                while current_date <= schedule['end_date']:
-                    day_name = current_date.strftime('%A')
-                    if day_name in schedule['days']:
-                        session_start = timezone.make_aware(datetime.combine(current_date, start_time))
-                        session_end = timezone.make_aware(datetime.combine(current_date, end_time))
-                        ClassSession.objects.create(
-                            schedule=class_schedule,
-                            session_date=current_date,
-                            start_time=session_start,
-                            end_time=session_end
-                        )
-                    current_date += timedelta(days=1)
+                # Create sessions (recurring for all matching days)
+                for schedule in schedules:
+                    current_date = schedule['start_date']
+                    start_time = parse_time_string(schedule['start_time'])
+                    end_time = parse_time_string(schedule['end_time'])
+                    while current_date <= schedule['end_date']:
+                        day_name = current_date.strftime('%A')
+                        if day_name in schedule['days']:
+                            session_start = timezone.make_aware(datetime.combine(current_date, start_time))
+                            session_end = timezone.make_aware(datetime.combine(current_date, end_time))
+                            ClassSession.objects.create(
+                                schedule=class_schedule,
+                                session_date=current_date,
+                                start_time=session_start,
+                                end_time=session_end
+                            )
+                        current_date += timedelta(days=1)
 
-            return class_schedule
+                return class_schedule
+        except serializers.ValidationError as e:
+            # Re-raise ValidationError without wrapping to preserve the original message
+            raise
+        except Exception as e:
+            # Handle unexpected errors with a generic message
+            logger.error(f"Error creating schedule: {str(e)}")
+            raise serializers.ValidationError({
+                'message': f'An unexpected error occurred while creating the schedule: {str(e)}',
+                'message_type': 'error'
+            })
