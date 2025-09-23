@@ -23,10 +23,10 @@ const Dashboard = () => {
         
       </Row>
       <Row>
-      <Col md="6">
+      <Col md="6" lg="6">
           <Transactions />  
         </Col>
-        <Col md="6">
+        <Col md="6" lg="6">
           <UnenrolledStudentsTable />  
         </Col>
       </Row>

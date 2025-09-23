@@ -391,16 +391,13 @@ const PaymentDetails = () => {
                 <Spinner color="primary" />
               </div>
             ) : error ? (
-              <p className="p-2 text-danger">Error: {error}</p>
+              <p className="p-2 text-danger">
+                Error: {typeof error === "string" ? error : error.message || JSON.stringify(error)}
+              </p>
             ) : tableData && tableData.length > 0 ? (
               <>
-                {/* Search input only if records exist*/}
                 <Row className="justify-content-end mx-0">
-                  <Col
-                    md="3"
-                    sm="12"
-                    className="d-flex align-items-center justify-content-end mt-1"
-                  >
+                  <Col md="3" sm="12" className="d-flex align-items-center justify-content-end mt-1">
                     <Input
                       id="search-input"
                       bsSize="sm"
@@ -431,7 +428,6 @@ const PaymentDetails = () => {
             )}
           </>
         )}
-
       </Card>
     </Fragment >
   );

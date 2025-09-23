@@ -14,9 +14,11 @@ import {
   Label
 } from 'reactstrap'
 import { registerTeacher } from '../../redux/teacherSlice'
-import { fetchCourses } from "../../redux/courseSlice";
+import { fetchCourses } from "../../redux/courseSlice"
+import { fetchTeachers } from '../../redux/teacherSlice'
 import '@styles/react/libs/flatpickr/flatpickr.scss'
-import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom"
+import Swal from "sweetalert2"
 
 const AddNewModal = ({ open, handleModal }) => {
   const dispatch = useDispatch()
@@ -37,6 +39,9 @@ const AddNewModal = ({ open, handleModal }) => {
     password: '',
     confirmPassword: ''
   })
+
+
+  const [formErrors, setFormErrors] = useState({});
 
   const [selectedCourse, setSelectedCourse] = useState("");
   const { list: courses, loading: courseLoading } = useSelector((state) => state.courses);
@@ -91,6 +96,7 @@ const AddNewModal = ({ open, handleModal }) => {
   }
 
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -99,29 +105,6 @@ const AddNewModal = ({ open, handleModal }) => {
     setLoading(true);
 
     try {
-      const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-      if (!passwordRegex.test(formData.password)) {
-        Swal.fire({
-          icon: "error",
-          title: "Invalid Password",
-          text: "Password must contain at least 8 characters, including one uppercase, lowercase, number, and special character.",
-        });
-        document.getElementById("password")?.focus();
-        return;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        Swal.fire({
-          icon: "error",
-          title: "Oops...",
-          text: "Passwords do not match!",
-        });
-        document.getElementById("confirmPassword")?.focus();
-        return;
-      }
-
       const courseAssignments = {
         course_id: formData.course,
         batches: formData.batch || []
@@ -162,7 +145,11 @@ const AddNewModal = ({ open, handleModal }) => {
           icon: "success",
           title: "Success!",
           text: "Teacher registered successfully!",
+        }).then(() => {
+          handleModal(); // close modal
+          navigate("/teacherdetails"); // navigate to teacher list
         });
+
         setFormData({
           name: '',
           course: '',
@@ -180,24 +167,35 @@ const AddNewModal = ({ open, handleModal }) => {
           password: '',
           confirmPassword: ''
         });
-        handleModal();
+        // handleModal();
+        dispatch(fetchTeachers());
       } else {
         const data = resultAction.payload;
-        let errorMessage = "";
 
-        if (data?.errors) {
-          if (data.errors.email) errorMessage += data.errors.email + "\n";
-          if (data.errors.phone) errorMessage += data.errors.phone + "\n";
-        } else if (data?.error) {
-          errorMessage = data.error;
-        } else {
-          errorMessage = "Something went wrong!";
+        let errorMessage = "Something went wrong!";
+
+        if (typeof data?.message === "string") {
+          // message is just a string
+          errorMessage = data.message;
+        } else if (data?.message?.error) {
+          // message.error case
+          errorMessage = data.message.error;
+        } else if (typeof data?.message === "object") {
+
+          setFormErrors(data.message);
+          // message is an object with field errors
+          errorMessage = Object.values(data.message)
+            .flat()
+            .join("\n");
         }
 
         Swal.fire({
           icon: "error",
           title: "Registration Failed",
-          text: errorMessage.trim(),
+          text: errorMessage,
+        }).then(() => {
+          handleModal(); // close modal
+          navigate("/teacherdetails"); // navigate to teacher list even on error
         });
       }
     } catch (err) {
@@ -205,6 +203,9 @@ const AddNewModal = ({ open, handleModal }) => {
         icon: "error",
         title: "Error",
         text: err.message || "Something went wrong!",
+      }).then(() => {
+        handleModal(); // close modal
+        navigate("/teacherdetails"); // navigate to teacher list
       });
     } finally {
       setLoading(false);
@@ -301,6 +302,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekdaysStartDate: formatDate(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -313,6 +315,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekdaysEndDate: formatDate(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -325,6 +328,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekdaysStart: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -337,6 +341,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekdaysEnd: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
             </>
@@ -355,6 +360,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekendStartDate: formatDate(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
 
@@ -368,6 +374,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, weekendEndDate: formatDate(date[0]) });
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -380,6 +387,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, saturdayStart: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -392,6 +400,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, saturdayEnd: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -404,6 +413,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, sundayStart: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
               <FormGroup>
@@ -416,6 +426,7 @@ const AddNewModal = ({ open, handleModal }) => {
                       setFormData({ ...formData, sundayEnd: formatTime(date[0]) })
                     }
                   }}
+                  required
                 />
               </FormGroup>
             </>

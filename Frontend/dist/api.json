@@ -2,6 +2,7 @@
     "auth": {
         "login": "/api/auth/login/",
         "getProfile": "/api/auth/profile/",
+        "logout": "/api/auth/logout/",
         "refreshToken": "/api/auth/token/refresh/"
     },
     "teacher": {

@@ -22,7 +22,7 @@ export const fetchCourses = createAsyncThunk(
         }
       );
 
-    if (Array.isArray(response.data?.data)) return response.data.data;
+    if (Array.isArray(response.data?.data)) return response.data;
       
 
       return [];
@@ -48,11 +48,11 @@ const courseSlice = createSlice({
       })
       .addCase(fetchCourses.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload;
+        state.list = action.payload?.data || [];
       })
       .addCase(fetchCourses.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || action.error?.message;
       });
   },
 });

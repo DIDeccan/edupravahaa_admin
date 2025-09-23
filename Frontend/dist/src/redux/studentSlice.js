@@ -20,7 +20,7 @@ export const fetchStudents = createAsyncThunk("students/fetchStudents",
 
             // console.log("API response:", response.data);
 
-            return response.data.data;
+            return response.data;
         } catch (err) {
             return rejectWithValue(err.response?.data || err.message);
         }
@@ -44,14 +44,21 @@ const studentSlice = createSlice({
             .addCase(fetchStudents.fulfilled, (state, action) => {
                 state.loading = false;
                 // state.list = action.payload;
-                state.list = Array.isArray(action.payload)
-                    ? action.payload
-                    : action.payload.data || [];
-                
+                // state.list = Array.isArray(action.payload)
+                //     ? action.payload
+                //     : action.payload?.data || [];
+                if (Array.isArray(action.payload)) {
+                    state.list = action.payload;
+                } else if (Array.isArray(action.payload?.data)) {
+                    state.list = action.payload.data;
+                } else {
+                    state.list = [];
+                }
             })
             .addCase(fetchStudents.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.error.message;
+                state.error = action.error.message || action.error.message || "Something went wrong";
+                state.list = [];
             });
     }
 });

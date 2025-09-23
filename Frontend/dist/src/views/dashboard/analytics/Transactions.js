@@ -50,7 +50,7 @@ const Transactions = () => {
         <CardSubtitle className="text-muted mb-25">Analytics</CardSubtitle>
         <CardTitle tag="h4">Transaction Report (Last 5)</CardTitle>
       </CardHeader>
-      <CardBody>
+      <CardBody style={{ maxHeight: "300px"}}>
         {loadingTransactions ? (
           <div className="text-center">
             <Spinner color="primary" />

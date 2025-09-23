@@ -14,7 +14,7 @@ const ApexBarChart = () => {
     dispatch(fetchUsersByCourse());
   }, [dispatch]);
 
-  console.log("studentEnrollList", studentEnrollList);
+  // console.log("studentEnrollList", studentEnrollList);
 
   // Use correct keys from your API
    const categories = studentEnrollList.map((item) => item.name);

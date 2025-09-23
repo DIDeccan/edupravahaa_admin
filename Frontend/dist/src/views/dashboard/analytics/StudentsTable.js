@@ -25,7 +25,7 @@ const UnenrolledStudentsTable = () => {
   }, [dispatch]);
 
   // Debug: Check what the data looks like
-  console.log("unenrolledStudents:", unenrolledStudents);
+  // console.log("unenrolledStudents:", unenrolledStudents);
 
   const studentsArray = Array.isArray(unenrolledStudents)
     ? unenrolledStudents
@@ -39,7 +39,7 @@ const UnenrolledStudentsTable = () => {
           Students Registered but Not Enrolled
         </CardTitle>
       </CardHeader>
-      <CardBody>
+      <CardBody style={{ maxHeight: "290px", overflowY: "auto" }}>
         {loadingUnenrolled ? (
           <div className="text-center">
             <Spinner color="primary" />
@@ -65,7 +65,7 @@ const UnenrolledStudentsTable = () => {
                 <tr key={idx}>
                   <td>{student.name}</td>
                   <td>{student.email}</td>
-                  <td>{student.phone}</td>
+                  <td>{student.phone_number}</td>
                   <td>
                     {new Date(student.registration_date).toLocaleDateString()}
                   </td>
