@@ -349,76 +349,92 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
     saturday_end = serializers.CharField(max_length=8, required=False)
     sunday_start = serializers.CharField(max_length=8, required=False)
     sunday_end = serializers.CharField(max_length=8, required=False)
- 
+
+    def _error(self, errors):
+        """Helper: format errors into one-line response."""
+        messages = []
+        if isinstance(errors, dict):
+            for field, errs in errors.items():
+                if isinstance(errs, (list, tuple)):
+                    for e in errs:
+                        messages.append(f"{field}: {e}")
+                else:
+                    messages.append(f"{field}: {errs}")
+        elif isinstance(errors, list):
+            # assume list of strings
+            messages.extend(str(e) for e in errors)
+        else:
+            messages.append(str(errors))
+
+        raise serializers.ValidationError({
+            "message": " | ".join(messages),
+            "message_type": "error",
+            "status": 400
+        })
+
     def validate_course_id(self, value):
         """Ensures the course exists and is active."""
         try:
             Course.objects.get(id=value, is_active=True)
             return value
         except Course.DoesNotExist:
-            raise serializers.ValidationError({
-                'message': f'Course with ID {value} not found or inactive.',
-                'message_type': 'error'
-            })
- 
+            self._error({"course_id": f"Course with ID {value} not found or inactive."})
+
     def validate_batches(self, value):
         """Validates batch choices and ensures no duplicates within this assignment."""
         valid_batches = ['weekdays', 'weekends']
+        errors = []
         if not all(batch in valid_batches for batch in value):
-            raise serializers.ValidationError({
-                'message': f'Batches must be one or more of: {", ".join(valid_batches)}.',
-                'message_type': 'error'
-            })
+            errors.append(f"batches: Must be one or more of: {', '.join(valid_batches)}.")
         if len(value) != len(set(value)):
-            raise serializers.ValidationError({
-                'message': 'Duplicate batches are not allowed in the same assignment.',
-                'message_type': 'error'
-            })
+            errors.append("batches: Duplicate batches are not allowed in the same assignment.")
         if len(value) > 2:
-            raise serializers.ValidationError({
-                'message': 'At most two batches (weekdays, weekends) can be assigned per course during creation.',
-                'message_type': 'error'
-            })
+            errors.append("batches: At most two batches (weekdays, weekends) can be assigned per course.")
+
+        if errors:
+            self._error(errors)
         return value
- 
+
     def validate(self, attrs):
         """Ensures required fields based on batches."""
         batches = attrs.get('batches', [])
         errors = {}
- 
+
         if 'weekdays' in batches:
             required_fields = ['weekdays_start_date', 'weekdays_end_date', 'weekdays_start', 'weekdays_end']
             for field in required_fields:
-                if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekdays' batch."
-            if 'weekdays_start_date' in attrs and 'weekdays_end_date' in attrs:
+                if not attrs.get(field):
+                    errors[field] = "This field is required for 'weekdays' batch."
+
+            # date order check
+            if attrs.get('weekdays_start_date') and attrs.get('weekdays_end_date'):
                 if attrs['weekdays_start_date'] > attrs['weekdays_end_date']:
                     errors['weekdays_end_date'] = "End date must be after start date."
-            if 'weekdays_days' in attrs:
+
+            # validate weekdays_days entries
+            if 'weekdays_days' in attrs and attrs.get('weekdays_days') is not None:
                 valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-                if not all(day in valid_days for day in attrs['weekdays_days']):
-                    errors['weekdays_days'] = f"Weekdays must be from: {', '.join(valid_days)}."
- 
+                invalid_days = [d for d in attrs['weekdays_days'] if d not in valid_days]
+                if invalid_days:
+                    errors['weekdays_days'] = f"Invalid days {invalid_days}. Must be from: {', '.join(valid_days)}."
+
         if 'weekends' in batches:
             required_fields = ['weekend_start_date', 'weekend_end_date']
             for field in required_fields:
-                if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field.replace('_', ' ').title()} is required for 'weekends' batch."
-            if 'weekend_start_date' in attrs and 'weekend_end_date' in attrs:
+                if not attrs.get(field):
+                    errors[field] = "This field is required for 'weekends' batch."
+
+            if attrs.get('weekend_start_date') and attrs.get('weekend_end_date'):
                 if attrs['weekend_start_date'] > attrs['weekend_end_date']:
                     errors['weekend_end_date'] = "End date must be after start date."
+
             has_sat = attrs.get('saturday_start') and attrs.get('saturday_end')
             has_sun = attrs.get('sunday_start') and attrs.get('sunday_end')
             if not (has_sat or has_sun):
                 errors['weekend_times'] = "At least Saturday or Sunday timings must be provided."
- 
+
         if errors:
-            raise serializers.ValidationError({
-                'message': 'Validation failed for course assignment.',
-                'message_type': 'error',
-                'details': errors
-            })
- 
+            self._error(errors)
         return attrs
  
     def validate_session_conflicts(self, teacher, course_id, schedules):
