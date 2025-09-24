@@ -223,117 +223,6 @@ class RegisterSerializer(serializers.Serializer):
         
         return user
 
-
-class TeacherCourseAssignmentSerializer(serializers.Serializer):
-    """Validates course assignment data for teacher registration."""
-    course_id = serializers.IntegerField()
-    batches = serializers.ListField(child=serializers.CharField(), allow_empty=False)
-    weekdays_start_date = serializers.DateField(required=False)
-    weekdays_end_date = serializers.DateField(required=False)
-    weekdays_days = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
-    weekdays_start = serializers.CharField(max_length=8, required=False)
-    weekdays_end = serializers.CharField(max_length=8, required=False)
-    weekend_start_date = serializers.DateField(required=False)
-    weekend_end_date = serializers.DateField(required=False)
-    saturday_start = serializers.CharField(max_length=8, required=False)
-    saturday_end = serializers.CharField(max_length=8, required=False)
-    sunday_start = serializers.CharField(max_length=8, required=False)
-    sunday_end = serializers.CharField(max_length=8, required=False)
-
-    def validate_course_id(self, value):
-        """Ensures the course exists and is active."""
-        try:
-            course = Course.objects.get(id=value, is_active=True)
-            return value
-        except Course.DoesNotExist:
-            raise serializers.ValidationError({"error": f"Course with ID {value} not found or inactive."})
-
-    def validate_batches(self, value):
-        """Validates batch choices and ensures no duplicates within this assignment."""
-        valid_batches = ['weekdays', 'weekends']
-        if not all(batch in valid_batches for batch in value):
-            raise serializers.ValidationError({
-                'error': f"Batches must be one or more of: {', '.join(valid_batches)}."
-            })
-        if len(value) != len(set(value)):
-            raise serializers.ValidationError({"error": "Duplicate batches are not allowed in the same assignment."})
-        if len(value) > 2:
-            raise serializers.ValidationError({"error": "At most two batches (weekdays, weekends) can be assigned per course during creation."})
-        return value
-
-    def validate(self, attrs):
-        """Ensures required fields based on batches."""
-        batches = attrs.get('batches', [])
-        errors = {}
-
-        if 'weekdays' in batches:
-            required_fields = ['weekdays_start_date', 'weekdays_end_date', 'weekdays_start', 'weekdays_end']
-            for field in required_fields:
-                if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekdays' batch."
-            if 'weekdays_start_date' in attrs and 'weekdays_end_date' in attrs:
-                if attrs['weekdays_start_date'] > attrs['weekdays_end_date']:
-                    errors['weekdays_end_date'] = "End date must be after start date."
-            if 'weekdays_days' in attrs:
-                valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-                if not all(day in valid_days for day in attrs['weekdays_days']):
-                    errors['weekdays_days'] = f"Weekdays must be from: {', '.join(valid_days)}."
-
-        if 'weekends' in batches:
-            required_fields = ['weekend_start_date', 'weekend_end_date']
-            for field in required_fields:
-                if field not in attrs or not attrs[field]:
-                    errors[field] = f"{field} is required for 'weekends' batch."
-            if 'weekend_start_date' in attrs and 'weekend_end_date' in attrs:
-                if attrs['weekend_start_date'] > attrs['weekend_end_date']:
-                    errors['weekend_end_date'] = "End date must be after start date."
-            has_sat = attrs.get('saturday_start') and attrs.get('saturday_end')
-            has_sun = attrs.get('sunday_start') and attrs.get('sunday_end')
-            if not (has_sat or has_sun):
-                errors['weekend_times'] = "At least Saturday or Sunday timings must be provided."
-
-        if errors:
-            raise serializers.ValidationError(errors)
-
-        return attrs
-
-    def validate_session_conflicts(self, teacher, course_id, schedules):
-        """Checks for overlapping sessions with existing teacher schedules."""
-        for schedule in schedules:
-            start_date = schedule['start_date']
-            end_date = schedule['end_date']
-            days = schedule['days']
-            start_time_str = schedule['start_time']
-            end_time_str = schedule['end_time']
-            try:
-                start_time = datetime.strptime(start_time_str, '%I:%M %p').time()
-                end_time = datetime.strptime(end_time_str, '%I:%M %p').time()
-                if start_time >= end_time:
-                    raise ValueError("End time must be after start time.")
-            except ValueError as e:
-                raise serializers.ValidationError({
-                    'error': f"Invalid time format or logic for {schedule['type']}: {str(e)}."
-                })
-
-            current_date = start_date
-            while current_date <= end_date:
-                day_name = current_date.strftime('%A')
-                if day_name in days:
-                    session_start = timezone.make_aware(datetime.combine(current_date, start_time))
-                    session_end = timezone.make_aware(datetime.combine(current_date, end_time))
-                    overlapping_sessions = ClassSession.objects.filter(
-                        schedule__teacher=teacher,
-                        start_time__lt=session_end,
-                        end_time__gt=session_start
-                    )
-                    if overlapping_sessions.exists():
-                        conflict_session = overlapping_sessions.first()
-                        raise serializers.ValidationError({
-                            'error': f"Teacher has a conflicting session on {current_date.strftime('%Y-%m-%d')} from {start_time_str} to {end_time_str} (existing: {conflict_session.start_time} to {conflict_session.end_time}). Timing must differ on the same date."
-                        })
-                current_date += timedelta(days=1)
-
-
 class TeacherCourseAssignmentSerializer(serializers.Serializer):
     """Validates course assignment data for teacher registration."""
     course_id = serializers.IntegerField()
@@ -361,19 +250,22 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
                 else:
                     messages.append(f"{field}: {errs}")
         elif isinstance(errors, list):
-            # assume list of strings
             messages.extend(str(e) for e in errors)
         else:
             messages.append(str(errors))
 
-        raise serializers.ValidationError({
-            "message": " | ".join(messages),
-            "message_type": "error",
-            "status": 400
-        })
+        raise serializers.ValidationError(
+        " | ".join(messages)
+    )
+
+    def to_internal_value(self, data):
+        """Override to catch field-level validation errors and reformat."""
+        try:
+            return super().to_internal_value(data)
+        except serializers.ValidationError as exc:
+            self._error(exc.detail)
 
     def validate_course_id(self, value):
-        """Ensures the course exists and is active."""
         try:
             Course.objects.get(id=value, is_active=True)
             return value
@@ -381,7 +273,6 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
             self._error({"course_id": f"Course with ID {value} not found or inactive."})
 
     def validate_batches(self, value):
-        """Validates batch choices and ensures no duplicates within this assignment."""
         valid_batches = ['weekdays', 'weekends']
         errors = []
         if not all(batch in valid_batches for batch in value):
@@ -396,7 +287,6 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        """Ensures required fields based on batches."""
         batches = attrs.get('batches', [])
         errors = {}
 
@@ -406,12 +296,10 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
                 if not attrs.get(field):
                     errors[field] = "This field is required for 'weekdays' batch."
 
-            # date order check
             if attrs.get('weekdays_start_date') and attrs.get('weekdays_end_date'):
                 if attrs['weekdays_start_date'] > attrs['weekdays_end_date']:
                     errors['weekdays_end_date'] = "End date must be after start date."
 
-            # validate weekdays_days entries
             if 'weekdays_days' in attrs and attrs.get('weekdays_days') is not None:
                 valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
                 invalid_days = [d for d in attrs['weekdays_days'] if d not in valid_days]
@@ -436,45 +324,7 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
         if errors:
             self._error(errors)
         return attrs
- 
-    def validate_session_conflicts(self, teacher, course_id, schedules):
-        """Checks for overlapping sessions with existing teacher schedules."""
-        #Commented out for future use as per new requirement
-        for schedule in schedules:
-            start_date = schedule['start_date']
-            end_date = schedule['end_date']
-            days = schedule['days']
-            start_time_str = schedule['start_time']
-            end_time_str = schedule['end_time']
-            try:
-                start_time = datetime.strptime(start_time_str, '%I:%M %p').time()
-                end_time = datetime.strptime(end_time_str, '%I:%M %p').time()
-                if start_time >= end_time:
-                    raise ValueError("End time must be after start time.")
-            except ValueError as e:
-                raise serializers.ValidationError({
-                    'message': f"Invalid time format or logic for {schedule['type']}: {str(e)}.",
-                    'message_type': 'error'
-                })
- 
-            current_date = start_date
-            while current_date <= end_date:
-                day_name = current_date.strftime('%A')
-                if day_name in days:
-                    session_start = timezone.make_aware(datetime.combine(current_date, start_time))
-                    session_end = timezone.make_aware(datetime.combine(current_date, end_time))
-                    overlapping_sessions = ClassSession.objects.filter(
-                        schedule__teacher=teacher,
-                        start_time__lt=session_end,
-                        end_time__gt=session_start
-                    )
-                    if overlapping_sessions.exists():
-                        conflict_session = overlapping_sessions.first()
-                        raise serializers.ValidationError({
-                            'message': f"Teacher has a conflicting session on {current_date.strftime('%Y-%m-%d')} from {start_time_str} to {end_time_str} (existing: {conflict_session.start_time} to {conflict_session.end_time}). Timing must differ on the same date.",
-                            'message_type': 'error'
-                        })
-                current_date += timedelta(days=1)
+
 
 class TeacherCreateSerializer(serializers.ModelSerializer):
     """Serializes teacher registration data with course assignments."""
