@@ -26,29 +26,29 @@ def validate_identifier_utility(value, identifier_type=None):
         elif re.match(r'^\+?\d{10,15}$', value):
             identifier_type = 'phone'
         else:
-            raise serializers.ValidationError({
-                'error': 'Invalid identifier. Must be a valid email or phone number (10-15 digits).'
-            })
+            raise serializers.ValidationError(
+                'Invalid identifier. Must be a valid email or phone number (10-15 digits).'
+            )
     else:
         if identifier_type == 'email' and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', value):
-            raise serializers.ValidationError({
-                'error': 'Invalid email format.'
-            })
+            raise serializers.ValidationError(
+                'Invalid email format.'
+            )
         elif identifier_type == 'phone' and not re.match(r'^\+?\d{10,15}$', value):
-            raise serializers.ValidationError({
-                'error': 'Invalid phone number. Must be 10-15 digits, optionally starting with +.'
-            })
+            raise serializers.ValidationError(
+                'Invalid phone number. Must be 10-15 digits, optionally starting with +.'
+            )
     return value, identifier_type
 
 
 def check_user_existence_utility(email=None, phone_number=None):
     if email and User.objects.filter(email=email).exists():
         raise serializers.ValidationError({
-            'error': 'This email is already registered.'
+            'This email is already registered.'
         })
     if phone_number and User.objects.filter(phone_number=phone_number).exists():
         raise serializers.ValidationError({
-            'error': 'This phone number is already registered.'
+            'This phone number is already registered.'
         })
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
@@ -152,9 +152,9 @@ class RegisterSerializer(serializers.Serializer):
                 'error': 'Invalid phone number. Must be 10-15 digits, optionally starting with +.'
             })
         if User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError({
-                'error': 'This phone number is already registered.'
-            })
+            raise serializers.ValidationError(
+                'This phone number is already registered.'
+            )
         return value
     
     def validate(self, attrs):
@@ -238,6 +238,31 @@ class TeacherCourseAssignmentSerializer(serializers.Serializer):
     saturday_end = serializers.CharField(max_length=8, required=False)
     sunday_start = serializers.CharField(max_length=8, required=False)
     sunday_end = serializers.CharField(max_length=8, required=False)
+
+    def validate_session_conflicts(self, teacher, course_id, schedules):
+        """
+        Validate if new schedules overlap with teacher’s existing sessions.
+        """
+        from datetime import datetime
+
+        for schedule in schedules:
+            start_time = datetime.strptime(schedule['start_time'], "%I:%M %p").time()
+            end_time = datetime.strptime(schedule['end_time'], "%I:%M %p").time()
+
+            existing_sessions = ClassSession.objects.filter(
+                schedule__teacher=teacher,
+                schedule__course_id=course_id,
+                session_date__range=[schedule['start_date'], schedule['end_date']]
+            )
+
+            for session in existing_sessions:
+                if not (end_time <= session.start_time.time() or start_time >= session.end_time.time()):
+                    raise serializers.ValidationError(
+                        f"Schedule conflict on {session.session_date} "
+                        f"({start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')})"
+                    )
+
+        return schedules
 
     def _error(self, errors):
         """Helper: format errors into one-line response."""
@@ -358,7 +383,7 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
         logger.debug(f"Validating phone: {value}")
         value, _ = validate_identifier_utility(value, 'phone')
         if User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError({"error": "Phone number is already in use."})
+            raise serializers.ValidationError("Phone number is already in use.")
         return value
 
     def validate(self, attrs):
