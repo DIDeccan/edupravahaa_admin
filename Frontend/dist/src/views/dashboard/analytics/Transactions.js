@@ -47,7 +47,6 @@ const Transactions = () => {
   return (
     <Card>
       <CardHeader>
-        <CardSubtitle className="text-muted mb-25">Analytics</CardSubtitle>
         <CardTitle tag="h4">Transaction Report (Last 5)</CardTitle>
       </CardHeader>
       <CardBody style={{ maxHeight: "300px"}}>

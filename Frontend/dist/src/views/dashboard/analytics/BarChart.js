@@ -39,7 +39,6 @@ const ApexBarChart = () => {
     <Card>
       <CardHeader>
         <div>
-          <CardSubtitle className="text-muted mb-25">Analytics</CardSubtitle>
           <CardTitle className="fw-bolder" tag="h4">Users by Course</CardTitle>
         </div>
       </CardHeader>

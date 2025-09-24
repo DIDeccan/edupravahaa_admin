@@ -34,7 +34,6 @@ const UnenrolledStudentsTable = () => {
   return (
     <Card>
       <CardHeader>
-        <CardSubtitle className="text-muted mb-25">Analytics</CardSubtitle>
         <CardTitle tag="h4">
           Students Registered but Not Enrolled
         </CardTitle>
