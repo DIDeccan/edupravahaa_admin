@@ -8,7 +8,7 @@ import { fetchUsersByCourse } from "../../../redux/analyticsSlice";
 
 const ApexBarChart = () => {
   const dispatch = useDispatch();
-  const { studentEnrollList = [], loading, error } = useSelector((state) => state.dashboard || {});
+  const { studentEnrollList = [], loading, errorUsers } = useSelector((state) => state.dashboard || {});
 
   useEffect(() => {
     dispatch(fetchUsersByCourse());
@@ -42,11 +42,11 @@ const ApexBarChart = () => {
           <CardTitle className="fw-bolder" tag="h4">Users by Course</CardTitle>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="d-flex justify-content-center align-items-center" style={{ minHeight: "440px" }}>
         {loading ? (
           <Spinner color="primary" />
-        ) : error ? (
-          <p className="text-danger">{error}</p>
+        ) : errorUsers ? (
+          <p className="text-danger text-center ">{errorUsers}</p>
         ) : (
           <Chart options={options} series={series} type="bar" height={400} />
         )}

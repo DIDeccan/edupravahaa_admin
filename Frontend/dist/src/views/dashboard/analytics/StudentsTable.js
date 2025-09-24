@@ -38,15 +38,16 @@ const UnenrolledStudentsTable = () => {
           Students Registered but Not Enrolled
         </CardTitle>
       </CardHeader>
-      <CardBody style={{ maxHeight: "290px", overflowY: "auto" }}>
+      <CardBody style={{ height: "290px", overflowY: "auto" }}>
         {loadingUnenrolled ? (
-          <div className="text-center">
+          <div className="d-flex justify-content-center align-items-center"
+      style={{ height: "100%", width: "100%" }}>
             <Spinner color="primary" />
           </div>
         ) : errorUnenrolled ? (
-          <p className="text-danger">{errorUnenrolled}</p>
+          <p className="text-danger text-center fw-bold">{errorUnenrolled}</p>
         ) : studentsArray.length === 0 ? (
-          <p>No unenrolled students found.</p>
+          <p className="text-danger text-center fw-bold">No unenrolled students found.</p>
         ) : (
           <Table responsive hover>
             <thead>

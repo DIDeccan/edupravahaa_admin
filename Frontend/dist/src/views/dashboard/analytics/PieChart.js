@@ -44,13 +44,13 @@ const UsersStatusPieChart = () => {
           <CardTitle className="fw-bolder" tag="h4">Users by Status</CardTitle>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="d-flex justify-content-center align-items-center" style={{ minHeight: "440px" }}>
         {loadingUsersByStatus ? (
           <Spinner color="primary" />
         ) : errorUsersByStatus ? (
-          <p className="text-danger">{errorUsersByStatus}</p>
+          <p className="text-danger text-center fw-bold">{errorUsersByStatus}</p>
         ) : series.length === 0 ? (
-          <p>No data available.</p>
+          <p className="text-danger text-center fw-bold">No data available.</p>
         ) : (
           <Chart options={options} series={series} type="pie" height={450} />
         )}

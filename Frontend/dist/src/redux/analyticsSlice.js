@@ -22,7 +22,7 @@ export const fetchUsersByCourse = createAsyncThunk(
 
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.detail || err.message);
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.detail || err.message);
     }
   }
 );

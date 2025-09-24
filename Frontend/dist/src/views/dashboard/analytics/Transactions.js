@@ -49,15 +49,15 @@ const Transactions = () => {
       <CardHeader>
         <CardTitle tag="h4">Transaction Report (Last 5)</CardTitle>
       </CardHeader>
-      <CardBody style={{ maxHeight: "300px"}}>
+      <CardBody style={{ minHeight: "290px"}}>
         {loadingTransactions ? (
-          <div className="text-center">
+          <div  className="d-flex justify-content-center align-items-center" style={{ minHeight: "270px" }}>
             <Spinner color="primary" />
           </div>
         ) : errorTransactions ? (
-          <p className="text-danger">{errorTransactions}</p>
+          <p className="text-danger text-center fw-bold">{errorTransactions}</p>
         ) : transactions.length === 0 ? (
-          <p>No transactions available.</p>
+          <p className="text-danger text-center fw-bold" >No transactions available.</p>
         ) : (
           <Table responsive hover>
             <thead>
