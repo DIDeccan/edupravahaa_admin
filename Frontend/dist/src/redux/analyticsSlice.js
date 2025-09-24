@@ -42,7 +42,7 @@ export const fetchTransactionsReport = createAsyncThunk(
 
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.detail || err.message);
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.detail || err.message);
     }
   }
 );
@@ -61,7 +61,7 @@ export const fetchUsersByStatus = createAsyncThunk(
 
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.detail || err.message);
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.detail || err.message);
     }
   }
 );
@@ -84,7 +84,7 @@ export const fetchUnenrolledStudents = createAsyncThunk(
       return response.data;
     } catch (err) {
       // console.error("[ERROR] fetchUnenrolledStudents:", err);
-      return rejectWithValue(err.response?.data?.detail || err.message);
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.detail || err.message);
     }
   }
 );
