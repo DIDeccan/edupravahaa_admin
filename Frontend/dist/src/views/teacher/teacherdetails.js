@@ -52,7 +52,23 @@ const columns = [
   },
   {
     name: 'Batch (Weekdays/Weekend)',
-    selector: row => row.batches.join(", "),
+    // selector: row => row.batches.join(", "),
+    selector: row => {
+      if (!row.batches) return "";
+      return row.batches
+        .map(batch => {
+          if (typeof batch === "string") return batch;
+          // batch is an object, format it nicely
+          if (batch.type === "weekdays") {
+            return `Weekdays: ${batch.weekdays_start} - ${batch.weekdays_end}`;
+          } else if (batch.type === "weekends") {
+            return `Weekend: ${batch.saturday_start || ""}-${batch.saturday_end || ""}, ${batch.sunday_start || ""}-${batch.sunday_end || ""}`;
+          } else {
+            return JSON.stringify(batch);
+          }
+        })
+        .join(", ");
+    },
     sortable: true
   },
 
@@ -108,7 +124,7 @@ const TeacherDetails = () => {
         (item.subject && item.subject.toLowerCase().includes(value.toLowerCase()))
       )
       setFilteredData(updatedData)
-    }else{
+    } else {
       setFilteredData([])
     }
   }

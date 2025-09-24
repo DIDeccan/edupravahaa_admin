@@ -117,29 +117,33 @@ const authSlice = createSlice({
     });
     builder.addCase(loginUser.fulfilled, (state, action) => {
       // console.log("Login successful:", action.payload);
- 
+
+      
       state.loading = false;
+      state.success = true;
+      state.error = null;
  
       // ✅ Save tokens properly
-      state.token = action.payload.access;
-      state.refreshToken = action.payload.refresh;
+      state.token = action.payload.data.access;
+      state.refreshToken = action.payload.data.refresh;
  
       state.user = {
-        user_type: action.payload.user_type,
-        is_trial: action.payload.is_trial,
-        has_purchased: action.payload.has_purchased,
-        trial_ends_at: action.payload.trial_ends_at,
-        trial_remaining_seconds: action.payload.trial_remaining_seconds,
+        user_type: action.payload.data.user_type,
+        is_trial: action.payload.data.is_trial,
+        has_purchased: action.payload.data.has_purchased,
+        trial_ends_at: action.payload.data?.trial_ends_at,
+        trial_remaining_seconds: action.payload.data?.trial_remaining_seconds,
       };
  
       // ✅ Store in localStorage
-      localStorage.setItem('access', action.payload.access);
-      localStorage.setItem('refresh', action.payload.refresh);
+      localStorage.setItem('access', action.payload.data.access);
+      localStorage.setItem('refresh', action.payload.data.refresh);
       localStorage.setItem('userData', JSON.stringify(state.user));
     });
  
     builder.addCase(loginUser.rejected, (state, action) => {
       state.loading = false;
+      state.success = false;
       state.error = action.payload;
     });
  

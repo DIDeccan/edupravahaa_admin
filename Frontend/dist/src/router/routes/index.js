@@ -2,7 +2,7 @@
 import { Fragment } from 'react'
 
 // ** Routes Imports
-import PagesRoutes from './Pages'
+// import PagesRoutes from './Pages'
 import DashboardRoutes from './Dashboards'
 import AuthenticationRoutes from './Authentication'
 import TeacherRoutes from './Teacher'
@@ -40,7 +40,6 @@ const DefaultRoute = '/dashboard/analytics'
 const Routes = [
   ...AuthenticationRoutes,
   ...DashboardRoutes,
-  ...PagesRoutes,
   ...TeacherRoutes,
   ...StudentRoutes,
   ...PaymentRoutes,

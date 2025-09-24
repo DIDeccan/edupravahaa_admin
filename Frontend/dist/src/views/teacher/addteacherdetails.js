@@ -193,8 +193,11 @@ const AddNewModal = ({ open, handleModal }) => {
           icon: "error",
           title: "Registration Failed",
           text: errorMessage,
-        }).then(() => {
-          handleModal(); // close modal
+        }).then(async() => {
+          handleModal(); 
+
+          await dispatch(fetchTeachers());  
+          
           navigate("/teacherdetails"); // navigate to teacher list even on error
         });
       }
@@ -204,6 +207,7 @@ const AddNewModal = ({ open, handleModal }) => {
         title: "Error",
         text: err.message || "Something went wrong!",
       }).then(() => {
+        dispatch(fetchTeachers()); 
         handleModal(); // close modal
         navigate("/teacherdetails"); // navigate to teacher list
       });
@@ -287,7 +291,6 @@ const AddNewModal = ({ open, handleModal }) => {
               Hold Ctrl (Windows) or Command (Mac) to select multiple batch types
             </small>
           </FormGroup>
-
           {/* Weekdays & Weekend Date/Time pickers */}
 
           {formData.batch.includes('weekdays') && (
