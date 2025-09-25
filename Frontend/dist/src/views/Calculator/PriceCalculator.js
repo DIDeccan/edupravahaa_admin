@@ -76,7 +76,7 @@ const PriceCalculator = () => {
       <h2 className="price-calculator-title">Price Calculator</h2>
 
       {/* Course Dropdown */}
-      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+      <div className="field-wrapper" style={{ maxWidth: "700px", width: "100%" }}>
         <label htmlFor="course">Course</label>
         <select
           id="course"
@@ -98,7 +98,7 @@ const PriceCalculator = () => {
       </div>
 
       {/* Original Price */}
-      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+      <div className="field-wrapper" style={{ maxWidth: "700px", width: "100%" }}>
         <label htmlFor="original-price">Original Price (₹)</label>
         <input
           id="original-price"
@@ -111,7 +111,7 @@ const PriceCalculator = () => {
       </div>
 
       {/* Discount */}
-      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+      <div className="field-wrapper" style={{ maxWidth: "700px", width: "100%" }}>
         <label htmlFor="discount">Discount (%)</label>
         <input
           id="discount"
@@ -124,7 +124,7 @@ const PriceCalculator = () => {
       </div>
 
       {/* Final Price */}
-      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+      <div className="field-wrapper" style={{ maxWidth: "700px", width: "100%" }}>
         <label htmlFor="final-price">Final Price (₹)</label>
         <input
           id="final-price"
