@@ -67,7 +67,7 @@ const UnenrolledStudentsTable = () => {
                   <td>{student.email}</td>
                   <td>{student.phone_number}</td>
                   <td>
-                    {new Date(student.registration_date).toLocaleDateString()}
+                    {new Date(student.registration_dateTime).toLocaleDateString()}
                   </td>
                   <td>{student.remaining_days ?? "N/A"}</td>
                   <td>{student.status}</td>
