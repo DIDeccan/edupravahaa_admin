@@ -11,34 +11,22 @@ import {
 
 const PriceCalculator = () => {
   const dispatch = useDispatch();
-  const {
-    classLevel,
-    originalPrice,
-    discount,
-    finalPrice,
-    error,
-    success,
-    loading,
-    courses,
-  } = useSelector((state) => state.pricing);
+  const { classLevel, originalPrice, discount, error, success, loading, courses } =
+    useSelector((state) => state.pricing);
 
   const [previewPrice, setPreviewPrice] = useState("");
   const [warning, setWarning] = useState("");
 
-  // Fetch courses when component loads
   useEffect(() => {
     dispatch(fetchCourses());
   }, [dispatch]);
 
-  // Calculate preview price
   useEffect(() => {
     const priceNum = parseFloat(originalPrice);
     const discountNum = parseFloat(discount);
     if (!isNaN(priceNum) && !isNaN(discountNum)) {
       const calcPrice =
-        Math.round(
-          (priceNum - priceNum * (discountNum / 100) + Number.EPSILON) * 100
-        ) / 100;
+        Math.round((priceNum - priceNum * (discountNum / 100) + Number.EPSILON) * 100) / 100;
       setPreviewPrice(calcPrice.toFixed(2));
     } else {
       setPreviewPrice("");
@@ -74,39 +62,25 @@ const PriceCalculator = () => {
   }, [success, error, warning, dispatch]);
 
   return (
-    <div className="px-2 price-calculator">
+    <div className="price-calculator px-2">
       {(warning || success || error) && (
         <div
-          className={`mx-auto mb-1 p-1 text-center fw-bold rounded ${
-            warning
-              ? "bg-light-warning text-dark"
-              : success
-              ? "bg-light-success text-white"
-              : "bg-light-danger text-white"
+          className={`price-calculator-alert ${
+            warning ? "bg-light-warning" : success ? "bg-light-success" : "bg-light-danger"
           }`}
-          style={{ maxWidth: "600px" }}
         >
-          {warning ||
-            (success ? "✅ Data submitted successfully!" : `❌ ${error}`)}
+          {warning || (success ? "✅ Data submitted successfully!" : `❌ ${error}`)}
         </div>
       )}
 
-      <h2
-        className="mt-0 mb-2 text-center"
-        style={{
-          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-          fontWeight: 700,
-          fontSize: "2.6rem",
-          letterSpacing: "0.5px",
-        }}
-      >
-        Price Calculator
-      </h2>
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div className="mb-3 mt-1" style={{ maxWidth: "700px", width: "100%" }}>
-        <label className="form-label fs-4 fw-bold ">Course</label>
+      <h2 className="price-calculator-title">Price Calculator</h2>
+
+      {/* Course Dropdown */}
+      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+        <label htmlFor="course">Course</label>
         <select
-          className="form-select price-calculator-field"
+          id="course"
+          className="price-calculator-field"
           value={classLevel || ""}
           onChange={(e) => dispatch(setClassLevel(e.target.value))}
         >
@@ -123,49 +97,53 @@ const PriceCalculator = () => {
         </select>
       </div>
 
-      <div className="mb-3" style={{ maxWidth: "700px", width: "100%" }}>
-        <label className="form-label fs-4 fw-bold">Original Price (₹)</label>
+      {/* Original Price */}
+      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+        <label htmlFor="original-price">Original Price (₹)</label>
         <input
+          id="original-price"
           type="text"
-          className="form-control price-calculator-field"
+          className="price-calculator-field"
           value={originalPrice}
           onChange={(e) => dispatch(setOriginalPrice(e.target.value))}
           placeholder="Enter original price"
         />
       </div>
 
-      <div className="mb-3" style={{ maxWidth: "700px", width: "100%" }}>
-        <label className="form-label fs-4 fw-bold">Discount (%)</label>
+      {/* Discount */}
+      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+        <label htmlFor="discount">Discount (%)</label>
         <input
+          id="discount"
           type="text"
-          className="form-control price-calculator-field"
+          className="price-calculator-field"
           value={discount}
           onChange={(e) => dispatch(setDiscount(e.target.value))}
           placeholder="Enter discount percentage"
         />
       </div>
 
-      <div className="mb-3" style={{ maxWidth: "700px", width: "100%" }}>
-        <label className="form-label fs-4 fw-bold">Final Price (₹)</label>
+      {/* Final Price */}
+      <div className="field-wrapper" style={{ maxWidth: "1400px", width: "100%" }}>
+        <label htmlFor="final-price">Final Price (₹)</label>
         <input
+          id="final-price"
           type="text"
-          className="form-control price-calculator-field"
+          className="price-calculator-field final-price-field"
           value={previewPrice ? `₹${previewPrice}` : ""}
           readOnly
           placeholder="Final price will be shown"
-          style={{ backgroundColor: "#f9f9f9" }}
         />
       </div>
+
       <button
         type="button"
         onClick={handleSubmit}
-        className="btn btn-primary w-100 mb-0"
         disabled={loading}
-        style={{ padding: "0.9rem", maxWidth: "300px", width: "100%" }}
+        className="btn btn-primary"
       >
         {loading ? "Calculating..." : "Submit"}
       </button>
-    </div>
     </div>
   );
 };
