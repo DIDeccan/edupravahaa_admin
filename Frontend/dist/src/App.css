@@ -56,7 +56,7 @@
 .price-calculator select.price-calculator-field option:checked {
   font-weight: 600;
   color: inherit;
-  background-color: #f7f5f5 ; /* subtle purple */
+  background-color:inherit ; /* subtle purple */
 }
 
 /* Focus state for inputs and dropdown */
