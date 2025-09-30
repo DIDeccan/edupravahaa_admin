@@ -1,6 +1,6 @@
 from django.urls import path
 from edu_platform.views.course_views import (
-    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, CoursePricingListAPIView, MyCoursesView,CourseStudentCountView, AllPaymentRecordsAPIView,CoursePricingCreateAPIView
+    CourseListView, AdminCourseCreateView, AdminCourseUpdateView, CoursePricingListAPIView, MyCoursesView,CourseStudentCountView, AllPaymentRecordsAPIView,CoursePricingCreateAPIView,CoursePricingDeleteAPIView
 )
 from edu_platform.views.enrollment_views import UpdateEnrollmentView
 
@@ -22,6 +22,7 @@ urlpatterns = [
     path('enrollment/<int:subscription_id>/', UpdateEnrollmentView.as_view(), name='update_enrollment'),
     path('pricing/create/', CoursePricingCreateAPIView.as_view(), name='create-course-pricing'),
     path('pricing/list/', CoursePricingListAPIView.as_view(), name='list-course-pricing'),
+    path('pricing/delete/<int:id>/', CoursePricingDeleteAPIView.as_view(), name='delete-course-pricing'),
 ]
 
 

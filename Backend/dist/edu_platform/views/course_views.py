@@ -786,4 +786,42 @@ class CoursePricingListAPIView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
+class CoursePricingDeleteAPIView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+    queryset = CoursePricing.objects.all()
+    lookup_field = 'id'  # Delete by ID
+
+    @swagger_auto_schema(
+        operation_description="Delete a course pricing record (Admin only)",
+        responses={
+            200: openapi.Response(
+                description="Deleted successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['success', 'error'])
+                    }
+                )
+            ),
+            404: openapi.Response(description="Not found"),
+            403: openapi.Response(description="Forbidden"),
+            500: openapi.Response(description="Server error")
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            instance.delete()
+            return Response({
+                'message': 'Course pricing deleted successfully.',
+                'message_type': 'success'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Course pricing deletion error: {str(e)}")
+            return Response({
+                'message': 'Failed to delete course pricing. Please try again.',
+                'message_type': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
