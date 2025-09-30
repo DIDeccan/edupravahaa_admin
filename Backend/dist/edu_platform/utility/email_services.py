@@ -94,9 +94,9 @@ def send_teacher_credentials(email, username, password):
             'email': user.email,
             'password': password,
             'phone': user.phone_number,
-            'qualification': teacher_profile.qualification or 'Not specified',
-            'specialization': ', '.join(teacher_profile.specialization) if teacher_profile.specialization else 'Not specified',
-            'teaching_languages': ', '.join(teacher_profile.teaching_languages) if teacher_profile.teaching_languages else 'Not specified',
+            #'qualification': teacher_profile.qualification or 'Not specified',
+            #'specialization': ', '.join(teacher_profile.specialization) if teacher_profile.specialization else 'Not specified',
+            #'teaching_languages': ', '.join(teacher_profile.teaching_languages) if teacher_profile.teaching_languages else 'Not specified',
         }
     except (User.DoesNotExist, TeacherProfile.DoesNotExist) as e:
         logger.error(f"Failed to fetch teacher details for {email}: {str(e)}")
@@ -105,9 +105,9 @@ def send_teacher_credentials(email, username, password):
             'email': email,
             'password': password,
             'phone': 'Not available',
-            'qualification': 'Not available',
-            'specialization': 'Not available',
-            'teaching_languages': 'Not available',
+            # 'qualification': 'Not available',
+            # 'specialization': 'Not available',
+            # 'teaching_languages': 'Not available',
         }
  
     # Fetch teacher's course assignments
@@ -146,9 +146,6 @@ def send_teacher_credentials(email, username, password):
                 <p><strong>Email:</strong> {teacher_details['email']}</p>
                 <p><strong>Password:</strong> {teacher_details['password']}</p>
                 <p><strong>Phone:</strong> {teacher_details['phone']}</p>
-                <p><strong>Qualification:</strong> {teacher_details['qualification']}</p>
-                <p><strong>Specialization:</strong> {teacher_details['specialization']}</p>
-                <p><strong>Teaching Languages:</strong> {teacher_details['teaching_languages']}</p>
                 <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
                 <h3>Assigned Courses</h3>
     """
@@ -188,10 +185,6 @@ def send_teacher_credentials(email, username, password):
         Name: {teacher_details['name']}
         Email: {teacher_details['email']}
         Phone: {teacher_details['phone']}
-        Qualification: {teacher_details['qualification']}
-        Specialization: {teacher_details['specialization']}
-        Teaching Languages: {teacher_details['teaching_languages']}
- 
         Assigned Courses:
     """
     if course_details:
@@ -239,9 +232,6 @@ def send_teacher_credentials(email, username, password):
             print(f"Name: {teacher_details['name']}")
             print(f"Email: {teacher_details['email']}")
             print(f"Phone: {teacher_details['phone']}")
-            print(f"Qualification: {teacher_details['qualification']}")
-            print(f"Specialization: {teacher_details['specialization']}")
-            print(f"Teaching Languages: {teacher_details['teaching_languages']}")
             print(f"Course Assignments:")
             for course in course_details:
                 print(f"Course: {course['course_name']}")
@@ -251,5 +241,3 @@ def send_teacher_credentials(email, username, password):
                 print(f"Time: {course['time']}")
                 print(f"{'-'*30}")
             print(f"{'='*50}\n")
-            return True  # Return True in debug mode
-        return False
