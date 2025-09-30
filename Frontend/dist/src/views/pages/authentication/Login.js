@@ -59,7 +59,7 @@ const ToastContent = ({ t, name, role }) => {
           <h6>{name}</h6>
           <X size={12} className='cursor-pointer' onClick={() => toast.dismiss(t.id)} />
         </div>
-        <span>You have successfully logged in as an {role} user to Edu Pravaha. Now you can start to explore. Enjoy!</span>
+        <span>You have successfully logged in as an {role} user to Edu Pravahaa. Now you can start to explore. Enjoy!</span>
       </div>
     </div>
   )
@@ -157,7 +157,7 @@ const Login = () => {
           {/* <span className='brand-logo'> */}
               <img src={themeConfig.app.appLogoImage} alt='logo' height={30} width={30} />
             {/* </span> */}
-          <h2 className='brand-text text-primary ms-1'>Edu Pravaha</h2>
+          <h2 className='brand-text text-primary ms-1'>Edu Pravahaa</h2>
         </Link>
         
       
