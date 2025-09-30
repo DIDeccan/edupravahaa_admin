@@ -35,8 +35,10 @@
         "unenrolled": "/api/auth/students/not-enrolled/"
     },
      "calculator":{
-        "price": "/api/courses/courses/pricing/create/"
-
+        "price": "/api/courses/pricing/create/",
+        "list": "/api/courses/pricing/list/",
+        "delete": "/api/courses/pricing/delete/"
+       
      }
 
 }
