@@ -754,3 +754,36 @@ class CoursePricingCreateAPIView(generics.CreateAPIView):
                 'message_type': 'error',
                 'status': status.HTTP_500_INTERNAL_SERVER_ERROR
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CoursePricingListAPIView(generics.ListAPIView):
+    serializer_class = CoursePricingSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        return CoursePricing.objects.all().order_by('-created_at')
+
+    @swagger_auto_schema(
+        operation_description="List all course pricing records (Admin only)",
+        responses={
+            200: openapi.Response(
+                description="List of course pricing",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'course': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'original_price': openapi.Schema(type=openapi.TYPE_NUMBER),
+                            'discount_percent': openapi.Schema(type=openapi.TYPE_NUMBER),
+                            'final_price': openapi.Schema(type=openapi.TYPE_NUMBER),
+                            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format='date-time'),
+                        }
+                    )
+                )
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
