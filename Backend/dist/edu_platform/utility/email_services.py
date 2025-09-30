@@ -117,9 +117,9 @@ def send_teacher_credentials(email, username, password):
         for schedule in schedules:
             course_info = {
                 'course_name': schedule.course.name,
-                'batch_type': schedule.type,
-                'start_date': schedule.startDate,
-                'end_date': schedule.endDate,
+                'batch_type': schedule.batch,
+                'start_date': schedule.batch_start_date,
+                'end_date': schedule.batch_end_date,
             }
             course_details.append(course_info)
     except Exception as e:
