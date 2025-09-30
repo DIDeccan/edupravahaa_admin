@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
 import apiList from "../../api.json";
-import api from "../utility/api"
+import api from "../utility/api";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -19,8 +18,6 @@ export const fetchCourses = createAsyncThunk(
           "Content-Type": "application/json",
         },
       });
-
-      // return only the array of courses
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -31,7 +28,8 @@ export const fetchCourses = createAsyncThunk(
 // --- Submit Calculation ---
 export const fetchCalculatePrice = createAsyncThunk(
   "calculator/fetchCalculatePrice",
-  async ({ course, original_price, discount_percent, final_price }, { rejectWithValue, getState }) => {
+  async ({ course, original_price, discount_percent, final_price },
+    { rejectWithValue, getState }) => {
     const { auth } = getState();
     const token = auth?.token || localStorage.getItem("access");
     try {
@@ -53,6 +51,48 @@ export const fetchCalculatePrice = createAsyncThunk(
   }
 );
 
+// --- Fetch Price List (table data) ---
+export const fetchPriceList = createAsyncThunk(
+  "calculator/fetchPriceList",
+  async (_, { rejectWithValue, getState }) => {
+    const { auth } = getState();
+    const token = auth?.token || localStorage.getItem("access");
+    try {
+      const url = `${API_URL}${apiList.calculator.list}`;
+      const response = await api.get(url, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+        },
+      });
+      return response.data.results;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+// --- Delete Price Record ---
+export const deletePrice = createAsyncThunk(
+  "calculator/deletePrice",
+  async (id, { rejectWithValue, getState }) => {
+    const { auth } = getState();
+    const token = auth?.token || localStorage.getItem("access");
+    try {
+      const url = `${API_URL}${apiList.calculator.delete}${id}/`;
+      await api.delete(url, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+        },
+      });
+      return id;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
 const calculatorSlice = createSlice({
   name: "pricing",
   initialState: {
@@ -63,7 +103,8 @@ const calculatorSlice = createSlice({
     loading: false,
     error: null,
     success: null,
-    courses: [], 
+    courses: [],
+    list: [],
   },
   reducers: {
     setClassLevel: (state, action) => {
@@ -86,12 +127,14 @@ const calculatorSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // courses
       .addCase(fetchCourses.fulfilled, (state, action) => {
         state.courses = action.payload;
       })
       .addCase(fetchCourses.rejected, (state, action) => {
         state.error = action.payload;
       })
+      // calculation
       .addCase(fetchCalculatePrice.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -105,11 +148,26 @@ const calculatorSlice = createSlice({
       .addCase(fetchCalculatePrice.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // price list
+      .addCase(fetchPriceList.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchPriceList.fulfilled, (state, action) => {
+        state.loading = false;
+        state.list = action.payload;
+      })
+      .addCase(fetchPriceList.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // delete
+      .addCase(deletePrice.fulfilled, (state, action) => {
+        state.list = state.list.filter((item) => item.id !== action.payload);
       });
   },
 });
 
-export const { setClassLevel, setOriginalPrice, setDiscount, reset } =
-  calculatorSlice.actions;
+export const { setClassLevel, setOriginalPrice, setDiscount, reset } = calculatorSlice.actions;
 
 export default calculatorSlice.reducer;
