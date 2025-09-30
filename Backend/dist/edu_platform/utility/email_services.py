@@ -115,17 +115,13 @@ def send_teacher_credentials(email, username, password):
         schedules = ClassSchedule.objects.filter(teacher__email=email)
         course_details = []
         for schedule in schedules:
-            course = schedule.course
-            for entry in schedule.schedule:
-                course_info = {
-                    'course_name': course.name,
-                    'batch_type': entry['type'],
-                    'start_date': entry['startDate'],
-                    'end_date': entry['endDate'],
-                    'days': ', '.join(entry['days']),
-                    'time': entry['time']
-                }
-                course_details.append(course_info)
+            course_info = {
+                'course_name': schedule.course.name,
+                'batch_type': schedule.type,
+                'start_date': schedule.startDate,
+                'end_date': schedule.endDate,
+            }
+            course_details.append(course_info)
     except Exception as e:
         logger.error(f"Failed to fetch course schedules for {email}: {str(e)}")
         course_details = []
@@ -155,8 +151,6 @@ def send_teacher_credentials(email, username, password):
                 <p><strong>Course:</strong> {course['course_name']}</p>
                 <p><strong>Batch Type:</strong> {course['batch_type'].capitalize()}</p>
                 <p><strong>Duration:</strong> {course['start_date']} to {course['end_date']}</p>
-                <p><strong>Days:</strong> {course['days']}</p>
-                <p><strong>Time:</strong> {course['time']}</p>
                 <hr style="border: none; border-top: 1px solid #ddd; margin: 10px 0;">
             """
     else:
@@ -193,8 +187,6 @@ def send_teacher_credentials(email, username, password):
         Course: {course['course_name']}
         Batch Type: {course['batch_type'].capitalize()}
         Duration: {course['start_date']} to {course['end_date']}
-        Days: {course['days']}
-        Time: {course['time']}
         ---
         """
     else:
@@ -237,7 +229,5 @@ def send_teacher_credentials(email, username, password):
                 print(f"Course: {course['course_name']}")
                 print(f"Batch Type: {course['batch_type'].capitalize()}")
                 print(f"Duration: {course['start_date']} to {course['end_date']}")
-                print(f"Days: {course['days']}")
-                print(f"Time: {course['time']}")
                 print(f"{'-'*30}")
             print(f"{'='*50}\n")
