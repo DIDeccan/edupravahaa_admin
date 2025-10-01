@@ -314,14 +314,24 @@ const PaymentDetails = () => {
               className=" payment-btn ml-1"
               onClick={() => {
                 if (!filteredData || filteredData.length === 0) {
-                  alert("No records to export");
+                  dispatch({
+                    type: "SHOW_TOAST",
+                    payload: { type: "error", message: "No records to export" }
+                  });
                   return;
                 }
-                downloadCSV(filteredData)
+
+                downloadCSV(filteredData);
+
+                dispatch({
+                  type: "SHOW_TOAST",
+                  payload: { type: "success", message: "CSV exported successfully!" }
+                });
               }}
             >
               Export CSV
             </Button>
+
           </div>
         </CardHeader>
 

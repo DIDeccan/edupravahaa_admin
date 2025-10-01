@@ -10,6 +10,7 @@ import {
   Spinner,
 } from "reactstrap";
 import { fetchUnenrolledStudents } from "../../../redux/analyticsSlice";
+import "../../../@core/scss/react/pages/dashboard.scss"
 
 const UnenrolledStudentsTable = () => {
   const dispatch = useDispatch();

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Chart from "react-apexcharts";
 import { Card, CardHeader, CardTitle, CardBody, CardSubtitle, Spinner } from "reactstrap";
 import { fetchUsersByCourse } from "../../../redux/analyticsSlice";
+import "../../../@core/scss/react/pages/dashboard.scss"
 
 
 

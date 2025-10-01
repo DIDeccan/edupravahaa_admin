@@ -2,6 +2,17 @@
 import toast from "react-hot-toast";
 
 const toastMiddleware = () => (next) => (action) => {
+  // Custom manual toasts
+  if (action.type === "SHOW_TOAST") {
+    const { type = "success", message } = action.payload || {};
+    if (message) {
+      if (type === "success") toast.success(message);
+      else if (type === "error") toast.error(message);
+      else if (type === "info") toast(message, { icon: "ℹ️" });
+      else if (type === "warning") toast(message, { icon: "⚠️" });
+    }
+  }
+
   // Show success messages when thunk resolves
   if (action.type.endsWith("/fulfilled")) {
     const message = action.payload?.message;

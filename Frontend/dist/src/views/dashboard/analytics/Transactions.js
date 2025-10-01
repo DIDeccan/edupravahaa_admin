@@ -11,6 +11,7 @@ import {
   Badge
 } from "reactstrap";
 import { fetchTransactionsReport } from "../../../redux/analyticsSlice";
+import "../../../@core/scss/react/pages/dashboard.scss"
 
 const Transactions = () => {
   const dispatch = useDispatch();
